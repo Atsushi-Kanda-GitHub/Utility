@@ -1,6 +1,7 @@
 #include "DoubleArray.h"
 #include <fstream>
 #include <limits>
+#include <unordered_map>
 #include <string.h>
 
 using namespace std;
@@ -821,7 +822,7 @@ void DoubleArray::reproductionData(
 		}
 	}
 
-	map<int, int> tail_indexes;	/* Tailに突入するBaseIndex first:TailIndex(正値) second:BaseIndex */
+	unordered_map<int, int> tail_indexes;	/* Tailに突入するBaseIndex first:TailIndex(正値) second:BaseIndex */
 	for (int i = 0; i < i_array_size_; ++i) {
 		if (i_base_[i] < 0) {
 			tail_indexes.insert(make_pair(i_base_[i] * -1, i));	/* 負値を正値に変換 */
