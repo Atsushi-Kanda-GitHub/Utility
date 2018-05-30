@@ -11,5 +11,5 @@ da_test.o: da_test.cpp
 	g++ $(CPPFLAG) -c da_test.cpp
 
 clean:
-	rm -f $(OBJS)
+	rm -f da $(OBJS)
 
