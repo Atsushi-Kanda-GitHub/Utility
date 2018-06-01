@@ -1,4 +1,5 @@
 # coding: UTF-8
+import os
 import sys
 import time
 import requests
@@ -7,6 +8,9 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 class SBI:
+  START_TIME = "09:00:00"
+  END_TIME   = "15:00:00"
+
   BASE_URL  = "https://site1.sbisec.co.jp/ETGate/"
   PORTFOLIO = "?_ControlID=WPLETpfR001Control&_PageID=DefaultPID&_DataStoreID=DSWPLETpfR001Control&_ActionID=DefaultAID&getFlg=on"
 
@@ -26,19 +30,30 @@ class SBI:
     res = self.session.post(SBI.BASE_URL, data=param)
     res.raise_for_status()
 
+  """Crawle start"""
+  def crawleStart(self):
+    time_stamp = self.createDatetime()
+    keep_session_only = True if time_stamp >= START_TIME else False
+    self.getPortfolio(keep_session_only)
+
+    if time_stamp >= END_TIME:
+      os.sysmtem("shutdown -s -f")
+
   """get Portfolio"""
-  def getPortfolio(self):
+  def getPortfolio(self, keep_session_only):
     HEADER = "<!--▽明細部-->"
     HOOTER = "<!--△明細部-->"
 
     res = self.session.get(SBI.BASE_URL + SBI.PORTFOLIO)
+    if keep_session_only:
+      return
+
     res.encoding = "cp932"
 
     start_pos  = res.text.find(HEADER)
     end_pos    = res.text.find(HOOTER)
     table_html = res.text[start_pos : end_pos]
-    bs = BeautifulSoup(table_html, "lxml")
-    table_info = bs.findAll("table")[1].findAll("table")[0]
+    table_info = BeautifulSoup(table_html, "lxml").findAll("table")[1].findAll("table")[0]
 
     data = ""
     timestamp = self.createDatetime()
@@ -47,7 +62,7 @@ class SBI:
       cols = rows[row_index].findAll("td")
       if len(cols) <= 1:
         continue
-      
+
       data += timestamp + "\t"
       for col_index in range(1, 8):
         if col_index == 1:
@@ -55,7 +70,7 @@ class SBI:
         else:
           data += cols[col_index].text + "\t"
       data = data[:-1] +"\n"
-    
+
     with open(self.outpath, "a") as f:
       f.write(data)
 
@@ -95,6 +110,6 @@ if __name__ == "__main__":
   sbi = SBI("data/" + datetime.now().strftime("%Y-%m-%d") + ".txt")
   sbi.loginSBI(sys.argv[1], sys.argv[2])
 
-  sbi_timer = threading.Timer(10, sbi.getPortfolio)
+  sbi_timer = threading.Timer(10, sbi.crawleStart)
   sbi_timer.start()
 
