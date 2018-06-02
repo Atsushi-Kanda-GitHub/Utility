@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # coding: UTF-8
 import os
 import sys
@@ -20,7 +21,7 @@ class SBI:
 
   """Login SBI"""
   def loginSBI(self, user_id, pw):
-    USER_ID = "user_id";
+    USER_ID = "user_id"
     USER_PW = "user_password"
 
     param = self.createLoginParam()
@@ -33,25 +34,27 @@ class SBI:
   """Crawle start"""
   def crawleStart(self):
     time_stamp = self.createDatetime()
-    keep_session_only = True if time_stamp >= START_TIME else False
-    self.getPortfolio(keep_session_only)
+    write_file = True if time_stamp >= SBI.START_TIME else False
+    self.getPortfolio(write_file)
 
-    if time_stamp >= END_TIME:
-      os.sysmtem("shutdown -s -f")
+    #if time_stamp >= SBI.END_TIME:
+      #os.sysmtem("shutdown -s -f")
 
   """get Portfolio"""
-  def getPortfolio(self, keep_session_only):
+  def getPortfolio(self, write_file):
     HEADER = "<!--▽明細部-->"
     HOOTER = "<!--△明細部-->"
 
     res = self.session.get(SBI.BASE_URL + SBI.PORTFOLIO)
-    if keep_session_only:
+    if write_file == False:
       return
 
     res.encoding = "cp932"
+    text = res.text.encode("UTF-8").decode("UTF-8")
+    start_pos  = text.find(HEADER)
+    end_pos    = text.find(HOOTER)
 
-    start_pos  = res.text.find(HEADER)
-    end_pos    = res.text.find(HOOTER)
+    print (start_pos,  end_pos)
     table_html = res.text[start_pos : end_pos]
     table_info = BeautifulSoup(table_html, "lxml").findAll("table")[1].findAll("table")[0]
 
@@ -71,7 +74,7 @@ class SBI:
           data += cols[col_index].text + "\t"
       data = data[:-1] +"\n"
 
-    with open(self.outpath, "a") as f:
+    with open(self.outpath, "a", encoding="UTF-8") as f:
       f.write(data)
 
   """Create Post Parameter in Login"""
@@ -109,7 +112,8 @@ if __name__ == "__main__":
 
   sbi = SBI("data/" + datetime.now().strftime("%Y-%m-%d") + ".txt")
   sbi.loginSBI(sys.argv[1], sys.argv[2])
+  sbi.crawleStart()
 
-  sbi_timer = threading.Timer(10, sbi.crawleStart)
-  sbi_timer.start()
+  #sbi_timer = threading.Timer(10, sbi.crawleStart)
+  #sbi_timer.start()
 
