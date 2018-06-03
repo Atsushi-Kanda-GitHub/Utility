@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # coding: UTF-8
 import os
 import sys
@@ -31,14 +30,14 @@ class SBI:
     res = self.session.post(SBI.BASE_URL, data=param)
     res.raise_for_status()
 
-  """Crawle start"""
-  def crawleStart(self):
+  """scraping start"""
+  def scrapingStart(self):
     time_stamp = self.createDatetime()
     write_file = True if time_stamp >= SBI.START_TIME else False
     self.getPortfolio(write_file)
 
-    #if time_stamp >= SBI.END_TIME:
-      #os.sysmtem("shutdown -s -f")
+    if time_stamp >= SBI.END_TIME:
+      os.system("shutdown -s -f")
 
   """get Portfolio"""
   def getPortfolio(self, write_file):
@@ -104,6 +103,10 @@ class SBI:
   def createDatetime(self):
     return datetime.now().strftime("%H:%M:%S")
 
+  def scrapingTimer(self):
+    self.scrapingStart()
+    t = threading.Timer(10, self.scrapingTimer)
+    t.start()
 
 if __name__ == "__main__":
   if len(sys.argv) < 3:
@@ -112,8 +115,6 @@ if __name__ == "__main__":
 
   sbi = SBI("data/" + datetime.now().strftime("%Y-%m-%d") + ".txt")
   sbi.loginSBI(sys.argv[1], sys.argv[2])
-  sbi.crawleStart()
 
-  #sbi_timer = threading.Timer(10, sbi.crawleStart)
-  #sbi_timer.start()
-
+  t = threading.Thread(target=sbi.scrapingTimer)
+  t.start()
