@@ -33,15 +33,15 @@ class DoubleArray
   using TrieArray = std::vector<std::vector<TrieLayerData>>;
 
 public:
-  static const int I_NO_ERROR         = 0x00; /* Normal                     */
-  static const int I_FAILED_TRIE      = 0x01; /* failed to create TRIE      */
-  static const int I_FAILED_MEMORY    = 0x02; /* Memory関連ERROR            */
-  static const int I_FAIELD_FILE_IO   = 0x04; /* FILE ERROR                 */
-  static const int I_NO_OPTION        = 0x00; /* no option                  */
-  static const int I_SPEED_PRIORITY   = 0x01; /* create speed priority      */
-  static const int I_TAIL_UNITY       = 0x02; /* 検索結果をtrue/falseに変換 */
-  static const int64_t I_HIT_DEFAULT  = 0x01; /* 検索結果統合時の返り値     */
-  static const int64_t I_SEARCH_NOHIT = 0x00; /* search no result           */
+  static constexpr int I_NO_ERROR         = 0x00; /* Normal                     */
+  static constexpr int I_FAILED_TRIE      = 0x01; /* failed to create TRIE      */
+  static constexpr int I_FAILED_MEMORY    = 0x02; /* Memory関連ERROR            */
+  static constexpr int I_FAIELD_FILE_IO   = 0x04; /* FILE ERROR                 */
+  static constexpr int I_NO_OPTION        = 0x00; /* no option                  */
+  static constexpr int I_SPEED_PRIORITY   = 0x01; /* create speed priority      */
+  static constexpr int I_TAIL_UNITY       = 0x02; /* 検索結果をtrue/falseに変換 */
+  static constexpr int64_t I_HIT_DEFAULT  = 0x01; /* 検索結果統合時の返り値     */
+  static constexpr int64_t I_SEARCH_NOHIT = 0x00; /* search no result           */
 
 public:
   /** init only */
@@ -268,7 +268,7 @@ private:
     const int i_current,
     const ByteArrayDatas& datas) const;
 
-public:
+private:
   /** BASE配列 */
   int* i_base_;
 
