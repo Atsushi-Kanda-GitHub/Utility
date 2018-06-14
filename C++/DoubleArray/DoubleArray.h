@@ -77,7 +77,7 @@ public:
   * @param result        search result
   * @param c_byte        search bytes
   * @param i_byte_length search data length
-  * @return true : ‘±‚«‚ª‚ ‚é•¶Žš—ñ  false : ‘±‚«‚ª–³‚¢•¶Žš—ñ
+  * @return true : ‘±‚«‚ª‚ ‚é  false : ‘±‚«‚ª–³‚¢
   */
   bool searchContinue(
     DASearchParts& search_parts,
