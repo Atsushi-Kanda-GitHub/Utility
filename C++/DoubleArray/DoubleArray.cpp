@@ -538,45 +538,42 @@ int64_t DoubleArray::search(
   const char* c_byte,
   uint64_t i_byte_length) const noexcept
 {
-  int i_base_index(0);
-  for (uint64_t i = 0; i <= i_byte_length; ++i) { /* 終端記号の分があるので<=とする */
-    int i_check_index(i_base_[i_base_index] + static_cast<unsigned char>(c_byte[i]));
+  uint64_t i;
+  int i_base_index(0), i_check_index;
+  for (i = 0; i <= i_byte_length; ++i) { /* 終端記号の分があるので<=とする */
+    i_check_index = i_base_[i_base_index] + static_cast<unsigned char>(c_byte[i]);
     if (i_check_[i_check_index] != i_base_index) {
       return I_SEARCH_NOHIT;  /* データが存在しない */
     }
 
-    if (i_base_[i_check_index] >= 0) {
-      i_base_index = i_check_index;
-      continue;
+    if (i_base_[i_check_index] < 0) {
+      break;
     }
+    i_base_index = i_check_index;
+  }
 
-    /* Tail処理 */
-    uint64_t i_tail_index(-i_base_[i_check_index]); /* Tail突入契機のマイナス値をプラスに変換 */
-    if (i < i_byte_length) {
-      ++i;
-      uint64_t i_compare_length(i_byte_length - i);
-      if (memcmp(&c_tail_char_[i_tail_index], &c_byte[i], i_compare_length + 1) == 0) {
-        if (i_tail_result_ == nullptr) return I_HIT_DEFAULT;
-        else                           return i_tail_result_[i_tail_index + i_compare_length];
-      }
-    } else if (i == i_byte_length) {
-      if (i_tail_result_ == nullptr) return I_HIT_DEFAULT;
-        else                         return i_tail_result_[i_tail_index];
+  /* Tail処理 */
+  uint64_t i_tail_index(-i_base_[i_check_index]); /* Tail突入契機のマイナス値をプラスに変換 */
+  if (i < i_byte_length) {
+    ++i;
+    uint64_t i_compare_length(i_byte_length - i);
+    if (memcmp(&c_tail_char_[i_tail_index], &c_byte[i], i_compare_length + 1) == 0) {
+      return (i_tail_result_ == nullptr ? I_HIT_DEFAULT : i_tail_result_[i_tail_index + i_compare_length]);
     }
-
-    return I_SEARCH_NOHIT;  /* Tailに来てヒットしなかったので無ヒット */
+  } else if (i == i_byte_length) {
+    return (i_tail_result_ == nullptr ? I_HIT_DEFAULT : i_tail_result_[i_tail_index]);
   }
 
   return I_SEARCH_NOHIT;
 }
 
 
-/* 途中経過状態を取得しながら検索する                        */
-/* @param sarch_parts   search position                      */
-/* @param result        search result                        */
-/* @param c_byte        search bytes                         */
-/* @param i_byte_length search data length                   */
-/* @return true : 続きがある文字列  false : 続きが無い文字列 */
+/* 途中経過状態を取得しながら検索する            */
+/* @param sarch_parts   search position          */
+/* @param result        search result            */
+/* @param c_byte        search bytes             */
+/* @param i_byte_length search data length       */
+/* @return true : 続きがある  false : 続きが無い */
 bool DoubleArray::searchContinue(
   DASearchParts& search_parts,
   int64_t& result,
@@ -584,63 +581,54 @@ bool DoubleArray::searchContinue(
   const uint64_t i_byte_length) const noexcept
 {
   result = I_SEARCH_NOHIT;
-  if (i_base_ == nullptr) {
-    return false; /* データゼロ */
-  }
 
-  unsigned int i(0);
-  bool b_continue(false);
-  for (; i < i_byte_length; ++i) {
-    if (search_parts.i_tail_ == 0) {  /* 前回Tailまで処理が進んでいたら、スキップ */
+  uint64_t i(0), i_byte_index(0);
+  if (search_parts.i_tail_ == 0) {  /* Tailまで進んでいない */
+    for (; i < i_byte_length; ++i) {
       search_parts.i_check_ = i_base_[search_parts.i_base_] + static_cast<unsigned char>(c_byte[i]);
       if (i_check_[search_parts.i_check_] != search_parts.i_base_) {
         return false; /* データが存在しない */
       }
-    }
 
-    if (search_parts.i_tail_ == 0
-    &&  i_base_[search_parts.i_check_] >= 0) {
+      if (i_base_[search_parts.i_check_] < 0) {
+        i_byte_index = i + 1;
+        search_parts.i_tail_ = -i_base_[search_parts.i_check_]; /* マイナス値をプラスに変換 */
+        break;
+      }
       search_parts.i_base_ = search_parts.i_check_;
-      continue;
     }
 
-    /* Tail処理 */
-    uint64_t i_byte_index(i);
-    if (search_parts.i_tail_ == 0) {  /* 初のTail突入時処理 */
-      ++i_byte_index;
-      search_parts.i_tail_ = -i_base_[search_parts.i_check_]; /* マイナス値をプラスに変換 */
-    }
-
-    uint64_t i_compare_size(i_byte_length - i_byte_index);
-    if (memcmp(&c_tail_char_[search_parts.i_tail_], &c_byte[i_byte_index], i_compare_size) != 0) {
-      break;  /* データが存在しない　Tailの途中で不一致 */
-    }
-    i_byte_index         += i_compare_size;
-    search_parts.i_tail_ += static_cast<int>(i_compare_size);
-
-    if (i_byte_index >= i_byte_length) {
-      if (c_tail_char_[search_parts.i_tail_] == C_TAIL_CHAR) {
-        if (i_tail_result_) result = i_tail_result_[search_parts.i_tail_];  /* ヒット */
-        else                result = I_HIT_DEFAULT;
-      } else {
-        b_continue = true;
+    if (i >= i_byte_length) {
+      if (i_check_[i_base_[search_parts.i_base_]] == search_parts.i_base_) {
+        const int i_tail_index(i_base_[i_base_[search_parts.i_base_]]);
+        if (i_tail_index < 0) {
+          if (i_tail_result_) result = i_tail_result_[-i_tail_index]; /* ヒット */
+          else                result = I_HIT_DEFAULT;
+        }
+        return true;
       }
-    }
-    break;  /* Tailに来たら、ヒット無ヒット関係なく終了 */
-  }
-
-  if (i >= i_byte_length) {
-    if (i_check_[i_base_[search_parts.i_base_]] == search_parts.i_base_) {
-      const int i_tail_index(i_base_[i_base_[search_parts.i_base_]]);
-      if (i_tail_index < 0) {
-        if (i_tail_result_) result = i_tail_result_[-i_tail_index]; /* ヒット */
-        else                result = I_HIT_DEFAULT;
-      }
-      b_continue = true;
     }
   }
 
-  return b_continue;
+  /* Tail処理 */
+  uint64_t i_compare_size(i_byte_length - i_byte_index);
+  if (memcmp(&c_tail_char_[search_parts.i_tail_], &c_byte[i_byte_index], i_compare_size) != 0) {
+    return false;  /* データが存在しない　Tailの途中で不一致 */
+  }
+
+  i_byte_index         += i_compare_size;
+  search_parts.i_tail_ += static_cast<int>(i_compare_size);
+
+  if (i_byte_index >= i_byte_length) {
+    if (c_tail_char_[search_parts.i_tail_] == C_TAIL_CHAR) {
+      if (i_tail_result_) result = i_tail_result_[search_parts.i_tail_];  /* ヒット */
+      else                result = I_HIT_DEFAULT;
+    } else {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 
