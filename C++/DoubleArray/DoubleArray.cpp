@@ -95,7 +95,7 @@ bool DoubleArray::checkInit() const
 /* BaseCheckのメモリ拡張                   */
 /* @param i_extend_size 拡張する配列サイズ */
 /* @return Error Code                      */
-ent DoubleArray::baseCheckExtendMemory(
+int DoubleArray::baseCheckExtendMemory(
   const int i_extend_size)
 {
   try {
