@@ -25,7 +25,7 @@ int main()
   //cout << "FilePath : ";
   //cin >> s_file_path;
 
-  const int i_count = 30;
+  const int i_count = 50;
 
   string s_buf;
   int i_index(0);
