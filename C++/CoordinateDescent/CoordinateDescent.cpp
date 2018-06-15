@@ -22,17 +22,17 @@ int CoordinateDescent::judge(
   }
 
   if (d_result >= 0.0)
-    return I_POSITIVE_EXAMPLE;
+    return I_POSITIVE;
 
-  return I_NEGATIVE_EXAMPLE;
+  return I_NEGATIVE;
 }
 
 /* CoordinateDescentによる学習         */
-/* @param d_soft_margin ソフトマージン */
 /* @param learn_data    学習データ     */
+/* @param d_soft_margin ソフトマージン */
 void CoordinateDescent::learn(
-  const double& d_soft_margin,
-  const vector<LearnData>& learn_data)
+  const vector<LearnData>& learn_data,
+  const double d_soft_margin)
 {
   const int i_learn_size(learn_data.size());	/* 学習コーパス数 */
 
@@ -244,7 +244,7 @@ void CoordinateDescent::setCoordinateDescentData(
 
 
 /* CoordinateDescentデータを取得 */
-const vector<double>& CoordinateDescent::getCoodinateDescentData() const
+const vector<double>& CoordinateDescent::getCoordinateDescentData() const
 {
   return feature_values_;
 }

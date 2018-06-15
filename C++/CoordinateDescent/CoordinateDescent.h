@@ -22,9 +22,9 @@ class LearnData;
 class CoordinateDescent
 {
 public:
-  static constexpr int    I_POSITIVE_EXAMPLE       =  1;
-  static constexpr int    I_NEGATIVE_EXAMPLE       = -1;
-  static constexpr double D_DEFAULT_CD_SOFT_MARGIN =  1.0;
+  static constexpr int    I_POSITIVE            =  1;
+  static constexpr int    I_NEGATIVE            = -1;
+  static constexpr double D_DEFAULT_SOFT_MARGIN =  1.0;
 
 public:
   /** コンストラクタ */
@@ -34,13 +34,13 @@ public:
   ~CoordinateDescent() {};
 
   /** CoordinateDescentによる学習
-  * @param d_soft_margin ソフトマージン
   * @param learn_data    学習データ
+  * @param d_soft_margin ソフトマージン
   * @return
   */
   void learn(
-    const double& d_soft_margin,
-    const std::vector<LearnData>& learn_data);
+    const std::vector<LearnData>& learn_data,
+    const double d_soft_margin = D_DEFAULT_SOFT_MARGIN);
 
   /** 判別
   * @param d_result 算出結果

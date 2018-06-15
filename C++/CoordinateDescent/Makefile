@@ -1,7 +1,7 @@
 OBJS    = CoordinateDescent.o cd_test.o
 CPPFLAG = -Wall -O3
 
-da:$(OBJS)
+cd:$(OBJS)
 	g++ -o cd $(OBJS)
 
 CoordinateDescent.o: CoordinateDescent.cpp
