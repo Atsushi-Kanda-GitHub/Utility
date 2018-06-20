@@ -30,10 +30,10 @@ void CRF::judge(
   for (size_t i = 0; i <= i_input_size; ++i) {
     if (i ==0) { /*BOS*/
       for (auto n = 0; n < i_label_size_; ++n) {
-        const int64_t i_index = getFeatureIndex(inputs[i], n, I_CRF_BOS);
+        const auto i_index = getFeatureIndex(inputs[i], n, I_CRF_BOS);
         if (i_index >= 0) {
-          pair<int64_t, double>& viterbi_pair = viterbis[i][n];
-          const double d_value = features_[static_cast<size_t>(i_index)];
+          auto& viterbi_pair = viterbis[i][n];
+          const auto d_value = features_[static_cast<size_t>(i_index)];
           if (viterbi_pair.second < d_value) {
             viterbi_pair.first  = 0;
             viterbi_pair.second = d_value;
@@ -42,11 +42,11 @@ void CRF::judge(
       }
     }
     else if (i == i_input_size) {
-      for (int64_t n = 0; n < i_label_size_; ++n) {
-        const int64_t i_index = getFeatureIndex(I_CRF_EOS, I_CRF_EOS, n);
+      for (auto n = 0; n < i_label_size_; ++n) {
+        const auto i_index = getFeatureIndex(I_CRF_EOS, I_CRF_EOS, n);
         if (i_index >= 0) {
-          pair<int64_t, double>& viterbi_pair = viterbis[i][I_CRF_EOS];
-          const double d_value = viterbis[i - 1][n].second + features_[static_cast<size_t>(i_index)];
+          auto& viterbi_pair = viterbis[i][I_CRF_EOS];
+          const auto d_value = viterbis[i - 1][n].second + features_[static_cast<size_t>(i_index)];
           if (viterbi_pair.second < d_value) {
             viterbi_pair.first  = n;
             viterbi_pair.second = d_value;
@@ -55,12 +55,12 @@ void CRF::judge(
       }
     }
     else {
-      for (int64_t n = 0; n < i_label_size_; ++n) {
-        for (int64_t g = 0; g < i_label_size_; ++g) {
-          const int64_t i_index = getFeatureIndex(inputs[i], n, g);
+      for (auto n = 0; n < i_label_size_; ++n) {
+        for (auto g = 0; g < i_label_size_; ++g) {
+          const auto i_index = getFeatureIndex(inputs[i], n, g);
           if (i_index >= 0) {
-            pair<int64_t, double>& viterbi_pair = viterbis[i][n];
-            const double d_value = viterbis[i - 1][g].second + features_[i_index];
+            auto& viterbi_pair = viterbis[i][n];
+            const auto d_value = viterbis[i - 1][g].second + features_[i_index];
             if (viterbi_pair.second < d_value) {
               viterbi_pair.first  = g;
               viterbi_pair.second = d_value;
@@ -71,7 +71,7 @@ void CRF::judge(
     }
   }
 
-  int64_t i_current(I_CRF_EOS);
+  auto i_current(I_CRF_EOS);
   results.resize(i_input_size);
   for (auto i = i_input_size; i > 0; --i) {
     results[static_cast<size_t>(i - 1)] = viterbis[static_cast<size_t>(i)][static_cast<size_t>(i_current)].first;
@@ -98,12 +98,12 @@ double CRF::judge(
 
   for (size_t i = 0; i <= i_input_size; ++i) {
     if (i == 0) { /* B0S */
-      const vector<int64_t>& candidates = *inputs[i].second;
+      const auto& candidates = *inputs[i].second;
       for (size_t n = 0, i_candidate_size = candidates.size(); n<i_candidate_size; ++n) {
-        const int64_t i_index = getFeatureIndex(inputs[i].first, candidates[n], I_CRF_BOS);
+        const auto i_index = getFeatureIndex(inputs[i].first, candidates[n], I_CRF_BOS);
         if (i_index >= 0) {
-          pair<int64_t, double>& viterbi_pair = viterbis[i][n];
-          const double d_value = features_[(size_t)i_index];
+          auto& viterbi_pair = viterbis[i][n];
+          const auto d_value = features_[(size_t)i_index];
           if (viterbi_pair.second < d_value) {
             viterbi_pair.first  = I_CRF_BOS;
             viterbi_pair.second = d_value;
@@ -112,12 +112,12 @@ double CRF::judge(
       }
     }
     else if (i == i_input_size) {
-      const vector<int64_t>& candidates = *inputs[i - 1].second;
+      const auto& candidates = *inputs[i - 1].second;
       for (size_t n = 0, i_candidate_size = candidates.size(); n < i_candidate_size; ++n) {
-        const int64_t i_index = getFeatureIndex(I_CRF_EOS, I_CRF_EOS, candidates[n]);
+        const auto i_index = getFeatureIndex(I_CRF_EOS, I_CRF_EOS, candidates[n]);
         if (i_index >= 0) {
-          pair<int64_t, double>& viterbi_pair = viterbis[i][I_CRF_EOS];
-          const double d_value = viterbis[i - 1][n].second + features_[(size_t)i_index];
+          auto& viterbi_pair = viterbis[i][I_CRF_EOS];
+          const auto d_value = viterbis[i - 1][n].second + features_[(size_t)i_index];
           if (viterbi_pair.second < d_value) {
             viterbi_pair.first  = n;
             viterbi_pair.second = d_value;
@@ -126,14 +126,14 @@ double CRF::judge(
       }
     }
     else {
-      const vector<int64_t>& befores    = *inputs[i - 1].second;
-      const vector<int64_t>& candidates = *inputs[i].second;
+      const auto& befores    = *inputs[i - 1].second;
+      const auto& candidates = *inputs[i].second;
       for (size_t n = 0, i_candidate_size = candidates.size(); n < i_candidate_size; ++n) {
         for (size_t g = 0, i_before_size = befores.size(); g < i_before_size; ++g) {
-          const int64_t i_index = getFeatureIndex(inputs[i].first, candidates[n], befores[g]);
+          const auto i_index = getFeatureIndex(inputs[i].first, candidates[n], befores[g]);
           if (i_index >= 0) {
-            pair<int64_t, double>& viterbi_pair = viterbis[i][n];
-            const double d_value = viterbis[i - 1][g].second + features_[(size_t)i_index];
+            auto& viterbi_pair = viterbis[i][n];
+            const auto d_value = viterbis[i - 1][g].second + features_[(size_t)i_index];
             if (viterbi_pair.second < d_value) {
               viterbi_pair.first  = g;
               viterbi_pair.second = d_value;
@@ -145,7 +145,7 @@ double CRF::judge(
   }
 
   double d_value(0.0);
-  int64_t i_current(I_CRF_EOS);
+  auto i_current(I_CRF_EOS);
   results.resize(i_input_size);
   for (int64_t i = i_input_size; i > 0; --i) {
     const size_t i_cast_index(static_cast<size_t>(i));
@@ -182,12 +182,11 @@ int CRF::learn(
   map<int64_t, double> updates;
   for (int i = 0; i < i_roop; ++i) {
     cout << i << endl;
-    for (vector<vector<CRFFeatureIndex>>::const_iterator learn_data = learn_datas.begin(),
-    learn_end = learn_datas.end(); learn_data != learn_end; ++learn_data) {
-      calcGradient(updates, *learn_data);
+    for (const auto& learn_data : learn_datas) {
+      calcGradient(updates, learn_data);
 
-      for (map<int64_t, double>::iterator update = updates.begin(), update_end = updates.end(); update != update_end; ++update) {
-        features_[(size_t)update->first] += (d_eta* (update->second- (d_regularization * features_[(size_t)update->first])));
+      for (auto& update : updates) {
+        features_[(size_t)update.first] += (d_eta* (update.second - (d_regularization * features_[(size_t)update.first])));
       }
       updates.clear();
     }
@@ -205,10 +204,9 @@ void CRF::createFeaturelnfo(
   const vector<vector<CRFFeatureIndex>>& learn_datas)
 {
   ByteArrayDatas byte_array_datas;
-  for (vector<vector<CRFFeatureIndex>>::const_iterator learn_data = learn_datas.begin(),
-  learn_data_end = learn_datas.end(); learn_data != learn_data_end; ++learn_data) {
-    const vector<CRFFeatureIndex>& datas = *learn_data;
-    for (size_t i = 1, i_size = datas.size(); i<i_size; ++i) {
+  for (const auto& learn_data : learn_datas) {
+    const auto& datas = learn_data;
+    for (size_t i = 1, i_size = datas.size(); i < i_size; ++i) {
       char* c_key;
       int i_key_length;
       createFeatureKey(c_key, i_key_length, datas[i].i_word_index_, datas[i].i_label_, datas[i - 1].i_label_);
@@ -233,11 +231,11 @@ void CRF::calcGradient(
 
   const size_t i_learn_data_size(learn_datas.size());
   for (size_t i = 1, i_size = i_learn_data_size; i < i_size; ++i) {
-    const int64_t i_feature_index = getFeatureIndex(learn_datas[i].i_word_index_, learn_datas[i].i_label_, learn_datas[i - 1].i_label_);
-    map<int64_t, double>::iterator update = updates.lower_bound(i_feature_index);
+    const auto i_feature = getFeatureIndex(learn_datas[i].i_word_index_, learn_datas[i].i_label_, learn_datas[i-1].i_label_);
+    auto update = updates.lower_bound(i_feature);
     if (update == updates.end()
-    ||  update->first != i_feature_index) {
-      update = updates.insert(update, make_pair(i_feature_index, 0.0));
+    ||  update->first != i_feature) {
+      update = updates.insert(update, make_pair(i_feature, 0.0));
     }
     ++update->second;
   }
@@ -256,14 +254,14 @@ void CRF::calcGradient(
   d_zeta = log(d_zeta) + d_max_alpha;
 
   for (size_t i = 1; i < i_learn_data_size; ++i) {
-    const CRFFeatureIndex& current_feature = learn_datas[i];
-    const CRFFeatureIndex& before_feature  = learn_datas[i - 1];
-    const int64_t i_feature_index = getFeatureIndex(current_feature.i_word_index_, current_feature.i_label_, before_feature.i_label_);
-    const double d_psi  = exp(features_[static_cast<size_t>(i_feature_index)]); /* É’(yt, yt-1) */
-    const double d_gran = d_psi * (exp(betas[i][static_cast<size_t>(current_feature.i_label_)]
-                          + alphas[i-1][static_cast<size_t>(before_feature.i_label_)] - d_zeta));
+    const auto& current_feature = learn_datas[i];
+    const auto& before_feature  = learn_datas[i-1];
+    const auto i_feature = getFeatureIndex(current_feature.i_word_index_, current_feature.i_label_, before_feature.i_label_);
+    const auto d_psi     = exp(features_[static_cast<size_t>(i_feature)]); /* É’(yt, yt-1) */
+    const auto d_gran    = d_psi * (exp(betas[i][static_cast<size_t>(current_feature.i_label_)]
+                           + alphas[i-1][static_cast<size_t>(before_feature.i_label_)] - d_zeta));
                           /* P(yt, yt-1 | xti) = É’(yt, yt-1) exp(É¿~(t, yt)+Éø~(t-1, yt-1)-ZN) */
-    map<int64_t, double>::iterator update = updates.find(i_feature_index);
+    auto update = updates.find(i_feature);
     update->second += d_gran;
   }
 }
@@ -283,15 +281,15 @@ void CRF::calcAlpha(
   alphas[0][0] = 1.0; /* íËã` */
   for (size_t i = 1; i < i_learn_size; ++i) { /* CurrentInputIndexêÊì™ÇÕBOSÇ»ÇÃÇ≈îÚÇŒÇ∑ */
     double d_max_alpha;
-    getMaxFeatureValue(d_max_alpha, i - 1, alphas); /* Éø~(t-1, yt-1(max)) */
+    getMaxFeatureValue(d_max_alpha, i-1, alphas); /* Éø~(t-1, yt-1(max)) */
     for (size_t n = 0; n < i_label_size; ++n) { /* CurrentIndex */
       double d_alpha(0.0);
       for (size_t g = 0; g < i_label_size; ++g) { /* BeforeIndex */
-        double d_exp = exp(alphas[i - 1][g] - d_max_alpha); /* exp(Éø~(t-1, yt-1) -Éø~(t-1, y(max)t-1)) */
+        double d_exp = exp(alphas[i-1][g] - d_max_alpha); /* exp(Éø~(t-1, yt-1) -Éø~(t-1, y(max)t-1)) */
         double d_phi(1.0);
-        const int64_t i_feature_index = getFeatureIndex(learn_datas[i].i_word_index_, n, g);
-        if (i_feature_index>=0) {
-          d_phi = exp(features_[static_cast<size_t>(i_feature_index)]);
+        const int64_t i_feature = getFeatureIndex(learn_datas[i].i_word_index_, n, g);
+        if (i_feature >= 0) {
+          d_phi = exp(features_[static_cast<size_t>(i_feature)]);
         }
         d_alpha += (d_exp * d_phi);
       }
@@ -318,11 +316,11 @@ void CRF::calcBeta(
     for (size_t n = 0; n < i_label_size; ++n) { /* CurrentIndex */
       double d_beta(0.0);
       for (size_t g = 0; g< i_label_size; ++g) { /* BeforeIndex */
-        const double d_exp = exp(betas[i + 1][g] - d_max_beta); /*exp(É¿~(t+1, yt+1) -É¿~(t+1, y(max)t+1)) */
+        const double d_exp = exp(betas[i+1][g] - d_max_beta); /*exp(É¿~(t+1, yt+1) -É¿~(t+1, y(max)t+1)) */
         double d_phi(1.0);
-        const int64_t i_feature_index = getFeatureIndex(learn_datas[i].i_word_index_, n, g);
-        if (i_feature_index >= 0) {
-          d_phi = exp(features_[static_cast<size_t>(i_feature_index)]);
+        const int64_t i_feature = getFeatureIndex(learn_datas[i].i_word_index_, n, g);
+        if (i_feature >= 0) {
+          d_phi = exp(features_[static_cast<size_t>(i_feature)]);
         }
         d_beta += (d_exp * d_phi);
       }
@@ -342,10 +340,10 @@ void CRF::getMaxFeatureValue(
   const vector<vector<double>>& datas) const
 {
   d_max_feature_value = std::numeric_limits<double>::min();
-  const vector<double>& values = datas[i_input_index];
-  for (vector<double>::const_iterator value = values.begin(), value_end = values.end(); value != value_end; ++value) {
-    if (d_max_feature_value < (*value)) {
-      d_max_feature_value = (*value);
+  const auto& values = datas[i_input_index];
+  for (const auto& value : values) {
+    if (d_max_feature_value < value) {
+      d_max_feature_value = value;
     }
   }
 }
@@ -466,3 +464,4 @@ int CRF::readBinary(
 
   return I_CRF_NORMAL;
 }
+
