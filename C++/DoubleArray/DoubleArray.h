@@ -154,13 +154,6 @@ public:
   */
   bool checkInit() const;
 
-  /** DoubleArray形式からデータを再生
-  * @param origins 再生したデータ
-  * @return
-  */
-  void reproductionData(
-    std::vector<std::pair<char*, int64_t>>& origins) const;
-
   /** 結果IndexからByte情報を復元する
   * @param c_info         復元したByte情報 呼び出し側でdeleteする
   * @param i_result_index 復元する結果Index
@@ -225,7 +218,7 @@ private:
   */
   int recursiveCreateDoubleArray(
     int& i_tail_index,
-    int* base_value_array,
+    unsigned int* base_value_array,
     TrieArray& trie_array,
     const int i_base_index,
     const size_t i_trie_index,
@@ -239,8 +232,8 @@ private:
   * @return Error Code
   */
   int getBaseValue(
-    int& i_base_value,
-    int* base_value_array,
+    unsigned int& i_base_value,
+    unsigned int* base_value_array,
     const int i_option,
     const std::vector<TrieLayerData>& tries) noexcept;
 
@@ -276,13 +269,13 @@ private:
   int64_t* i_tail_result_;
 
   /** 要素数サイズ */
-  int i_array_size_;
+  uint64_t i_array_size_;
 
   /** Tail文字列サイズ */
-  int i_tail_char_size_;
+  uint64_t i_tail_char_size_;
 
   /** Tail結果配列サイズ */
-  int i_tail_result_size_;
+  uint64_t i_tail_result_size_;
 };
 
 /** 検索経過状態情報 */
@@ -360,7 +353,7 @@ public:
   TrieParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
   TrieParts(
     char* c_tail,
-    const int64_t i_tail_size,
+    const uint64_t i_tail_size,
     const int64_t result) : c_tail_(c_tail), i_tail_size_(i_tail_size), i_result_(result) {}
 
   ~TrieParts()
@@ -376,7 +369,7 @@ public:
   char* c_tail_;
 
   /** Tailのデータサイズ */
-  int64_t i_tail_size_;
+  uint64_t i_tail_size_;
 
   /** 検索データが存在した場合の結果 */
   int64_t i_result_;
