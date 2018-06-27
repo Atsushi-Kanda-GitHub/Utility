@@ -7,9 +7,6 @@
 #include <random>
 #include <chrono>
 
-//#include <crtdbg.h>
-//#define malloc(X) _malloc_dbg(X,_NORMAL_BLOCK,__FILE__,__LINE__) 
-//#define new ::new(_NORMAL_BLOCK, __FILE__, __LINE__)
 
 using namespace std;
 
@@ -19,8 +16,6 @@ void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count)
 
 int main()
 {
-  //_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_DELAY_FREE_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF);
-
   string s_file_path("da_test_data.txt");
   //cout << "FilePath : ";
   //cin >> s_file_path;
@@ -85,8 +80,8 @@ void calcDA(const vector<pair<string, int>>& test_datas, const int i_count)
 
   all_create_time /= i_count;
   all_search_time /= i_count;
-  cout << "create average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_create_time).count() << " msec." << endl;
-  cout << "search average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_search_time).count() << " msec." << endl << endl;
+  cout << "create average time = " << chrono::duration_cast<chrono::milliseconds>(all_create_time).count() << " msec." << endl;
+  cout << "search average time = " << chrono::duration_cast<chrono::milliseconds>(all_search_time).count() << " msec." << endl;
 }
 
 void calcMap(const vector<pair<string, int>>& test_datas, const int i_count)
@@ -125,8 +120,8 @@ void calcMap(const vector<pair<string, int>>& test_datas, const int i_count)
 
   all_create_time /= i_count;
   all_search_time /= i_count;
-  cout << "create average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_create_time).count() << " msec." << endl;
-  cout << "search average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_search_time).count() << " msec." << endl;
+  cout << "create average time = " << chrono::duration_cast<chrono::milliseconds>(all_create_time).count() << " msec." << endl;
+  cout << "search average time = " << chrono::duration_cast<chrono::milliseconds>(all_search_time).count() << " msec." << endl;
 }
 
 void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count)
@@ -164,6 +159,6 @@ void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count)
 
   all_create_time /= i_count;
   all_search_time /= i_count;
-  cout << "create average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_create_time).count() << " msec." << endl;
-  cout << "search average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_search_time).count() << " msec." << endl;
+  cout << "create average time = " << chrono::duration_cast<chrono::milliseconds>(all_create_time).count() << " msec." << endl;
+  cout << "search average time = " << chrono::duration_cast<chrono::milliseconds>(all_search_time).count() << " msec." << endl;
 }
