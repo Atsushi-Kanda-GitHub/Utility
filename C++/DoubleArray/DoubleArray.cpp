@@ -89,7 +89,7 @@ int DoubleArray::baseCheckExtendMemory(
   const int i_extend_size)
 {
   try {
-    int i_new_array_size(i_extend_size ? i_array_size_ + i_extend_size : (i_array_size_ * I_EXTEND_MEMORY));
+    uint64_t i_new_array_size(i_extend_size ? i_array_size_ + i_extend_size : (i_array_size_ * I_EXTEND_MEMORY));
 
     int* i_new_base  = new int[i_new_array_size];
     int* i_new_check = new int[i_new_array_size];
@@ -147,7 +147,10 @@ int DoubleArray::tailExtendMemory()
 int DoubleArray::optimizeMemory(
   const int i_tail_last_index)
 {
-  for (int i = i_array_size_ - 1; i >= 0; --i) {
+  if (i_array_size_ == 0)
+    return I_NO_ERROR;
+
+  for (int64_t i = i_array_size_ - 1; i >= 0; --i) {
     if (i_base_[i]) {
       i_array_size_ = i + 1;
       break;
@@ -684,9 +687,9 @@ int DoubleArray::readBinary(
 /* @param i_tail_result      Tail結果配列     */
 /* @param c_tail_char        Tail文字配列     */
 void DoubleArray::getDoubleArrayData(
-  int& i_array_size,
-  int& i_tail_char_size,
-  int& i_tail_result_size,
+  uint64_t& i_array_size,
+  uint64_t& i_tail_char_size,
+  uint64_t& i_tail_result_size,
   const int*& i_base,
   const int*& i_check,
   const int64_t*& i_tail_result,
@@ -764,7 +767,7 @@ void DoubleArray::reproductionFromIndex(
   }
 
   vector<char> datas;
-  int i_tail_index(--i_tail_last_index);  /* 終端記号を指しているので一つ前にする */
+  int64_t i_tail_index(--i_tail_last_index);  /* 終端記号を指しているので一つ前にする */
   while (c_tail_char_[i_tail_index]) {
     datas.push_back(c_tail_char_[i_tail_index--]);  /* Tail部分のデータ */
   }

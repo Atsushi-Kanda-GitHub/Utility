@@ -121,9 +121,9 @@ public:
   * @return
   */
   void getDoubleArrayData(
-    int& i_array_size,
-    int& i_tail_char_size,
-    int& i_tail_result_size,
+    uint64_t& i_array_size,
+    uint64_t& i_tail_char_size,
+    uint64_t& i_tail_result_size,
     const int*& i_base,
     const int*& i_check,
     const int64_t*& i_tail_result,
