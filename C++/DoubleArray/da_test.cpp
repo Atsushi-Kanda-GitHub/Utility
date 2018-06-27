@@ -13,9 +13,9 @@
 
 using namespace std;
 
-void calcDA(     const vector<pair<string, int>>& addresses, const int i_count);
-void calcMap(    const vector<pair<string, int>>& addresses, const int i_count);
-void calcHashMap(const vector<pair<string, int>>& addresses, const int i_count);
+void calcDA(     const vector<pair<string, int>>& test_datas, const int i_count);
+void calcMap(    const vector<pair<string, int>>& test_datas, const int i_count);
+void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count);
 
 int main()
 {
@@ -29,25 +29,25 @@ int main()
 
   string s_buf;
   int i_index(0);
-  vector<pair<string, int>> addresses;
+  vector<pair<string, int>> test_datas;
   ifstream fin(s_file_path.c_str());
   while (getline(fin, s_buf)) {
-    addresses.push_back(make_pair(s_buf, ++i_index));
+    test_datas.push_back(make_pair(s_buf, ++i_index));
   }
   fin.close();
 
   random_device rd;
   mt19937 mt(rd());
-  shuffle(addresses.begin(), addresses.end(), mt);
+  shuffle(test_datas.begin(), test_datas.end(), mt);
   
-  calcMap(    addresses, i_count);
-  calcHashMap(addresses, i_count);
-  calcDA(     addresses, i_count);
+  calcMap(    test_datas, i_count);
+  calcHashMap(test_datas, i_count);
+  calcDA(     test_datas, i_count);
 
   return 0;
 }
 
-void calcDA(const vector<pair<string, int>>& addresses, const int i_count)
+void calcDA(const vector<pair<string, int>>& test_datas, const int i_count)
 {
   cout << "-------- DoubleArray --------" << endl;
 
@@ -58,9 +58,9 @@ void calcDA(const vector<pair<string, int>>& addresses, const int i_count)
 
     bool b_effective = true;
     ByteArrayDatas byte_datas;
-    for (auto address : addresses) {
+    for (const auto& test_data : test_datas) {
       if (b_effective) {
-        byte_datas.addData(address.first.c_str(), address.first.length(), address.second);
+        byte_datas.addData(test_data.first.c_str(), test_data.first.length(), test_data.second);
       }
       b_effective = !b_effective;
     }
@@ -71,9 +71,9 @@ void calcDA(const vector<pair<string, int>>& addresses, const int i_count)
 
     b_effective = true;
     auto search_start = chrono::system_clock::now();
-    for (auto address : addresses) {
-      int64_t result = da.search(address.first.c_str(), address.first.length());
-      if ((b_effective && result != address.second)
+    for (const auto& test_data : test_datas) {
+      int64_t result = da.search(test_data.first.c_str(), test_data.first.length());
+      if ((b_effective && result != test_data.second)
       ||  (b_effective == false && result != 0)) {
         std::cout << "NG" << std::endl;
       }
@@ -89,7 +89,7 @@ void calcDA(const vector<pair<string, int>>& addresses, const int i_count)
   cout << "search average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_search_time).count() << " msec." << endl << endl;
 }
 
-void calcMap(const vector<pair<string, int>>& addresses, const int i_count)
+void calcMap(const vector<pair<string, int>>& test_datas, const int i_count)
 {
   cout << "-------- map --------" << endl;
 
@@ -99,10 +99,10 @@ void calcMap(const vector<pair<string, int>>& addresses, const int i_count)
     auto create_start = chrono::system_clock::now();
 
     bool b_effective = true;
-    map<string, int> address_map;
-    for (auto address : addresses) {
+    map<string, int> data_map;
+    for (const auto& test_data : test_datas) {
       if (b_effective) {
-        address_map.insert(address);
+        data_map.insert(test_data);
       }
       b_effective = !b_effective;
     }
@@ -111,10 +111,10 @@ void calcMap(const vector<pair<string, int>>& addresses, const int i_count)
 
     b_effective = true;
     auto search_start = chrono::system_clock::now();
-    for (auto address : addresses) {
-      auto result = address_map.find(address.first);
-      if ((b_effective          && (result->second != address.second))
-      ||  (b_effective == false && (result         != address_map.end()))) {
+    for (const auto& test_data : test_datas) {
+      auto result = data_map.find(test_data.first);
+      if ((b_effective          && (result->second != test_data.second))
+      ||  (b_effective == false && (result         != data_map.end()))) {
         std::cout << "NG" << std::endl;
       }
       b_effective = !b_effective;
@@ -129,7 +129,7 @@ void calcMap(const vector<pair<string, int>>& addresses, const int i_count)
   cout << "search average time = " << chrono::duration_cast<std::chrono::milliseconds>(all_search_time).count() << " msec." << endl;
 }
 
-void calcHashMap(const vector<pair<string, int>>& addresses, const int i_count)
+void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count)
 {
   cout << "-------- unordered_map --------" << endl;
   common_type_t<chrono::system_clock::duration, chrono::system_clock::duration> all_create_time(0), all_search_time(0);
@@ -138,10 +138,10 @@ void calcHashMap(const vector<pair<string, int>>& addresses, const int i_count)
     auto create_start = chrono::system_clock::now();
 
     bool b_effective = true;
-    unordered_map<string, int> address_map;
-    for (auto address : addresses) {
+    unordered_map<string, int> data_map;
+    for (auto test_data : test_datas) {
       if (b_effective) {
-        address_map.insert(address);
+        data_map.insert(test_data);
       }
       b_effective = !b_effective;
     }
@@ -150,10 +150,10 @@ void calcHashMap(const vector<pair<string, int>>& addresses, const int i_count)
 
     b_effective = true;
     auto search_start = chrono::system_clock::now();
-    for (auto address : addresses) {
-      auto result = address_map.find(address.first);
-      if ((b_effective          && (result->second != address.second))
-      ||  (b_effective == false && (result != address_map.end()))) {
+    for (auto test_data : test_datas) {
+      auto result = data_map.find(test_data.first);
+      if ((b_effective          && (result->second != test_data.second))
+      ||  (b_effective == false && (result != data_map.end()))) {
         std::cout << "NG" << std::endl;
       }
       b_effective = !b_effective;
