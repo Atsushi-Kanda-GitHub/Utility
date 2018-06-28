@@ -65,7 +65,7 @@ public:
   */
   int createDoubleArray(
     ByteArrayDatas& add_datas,
-    const int i_option = I_SPEED_PRIORITY);
+    const int i_option = I_SPEED_PRIORITY) noexcept;
 
   /** 検索する
   * c_byteにはNULLが途中に含まれる可能性がある為、
@@ -99,7 +99,7 @@ public:
   */
   int writeBinary(
     int64_t& i_write_size,
-    FILE* fp) const;
+    FILE* fp) const noexcept;
 
   /** DoubleArray情報を読み込む
   * @param i_read_size 読み込んだデータサイズ
@@ -108,7 +108,7 @@ public:
   */
   int readBinary(
     int64_t& i_read_size,
-    FILE* fp);
+    FILE* fp) noexcept;
 
   /** 内部データを取得する
   * @param i_array_size       配列サイズ
@@ -127,7 +127,7 @@ public:
     const int*& i_base,
     const int*& i_check,
     const int64_t*& i_tail_result,
-    const char*& c_tail_char) const;
+    const char*& c_tail_char) const noexcept;
 
   /** 内部データを外部から設定する
   * @param i_array_size       配列サイズ
@@ -146,13 +146,13 @@ public:
     const int* i_base,
     const int* i_check,
     const int64_t* i_tail_result,
-    const char* c_tail_char);
+    const char* c_tail_char) noexcept;
 
   /** データが作成されているかチェック
   * @param
   * @return true : データ作成されてる  false : 空
   */
-  bool checkInit() const;
+  bool checkInit() const noexcept;
 
   /** 結果IndexからByte情報を復元する
   * @param c_info         復元したByte情報 呼び出し側でdeleteする
@@ -161,7 +161,7 @@ public:
   */
   void reproductionFromIndex(
     char*& c_info,
-    const int64_t i_result_index) const;
+    const int64_t i_result_index) const noexcept;
 
 private:
   /** メモリ確保
@@ -169,34 +169,34 @@ private:
   * @return Error Code
   */
   int keepMemory(
-    const bool b_init_size = false);
+    const bool b_init_size = false) noexcept;
 
   /** メモリ破棄
   * @param b_init_size サイズを初期化するか
   * @return
   */
   void deleteMemory(
-    const bool b_init_size = false);
+    const bool b_init_size = false) noexcept;
 
   /** BaseCheckのメモリ拡張
   * @param i_extend_size 拡張する配列サイズ
   * @return Error Code
   */
   int baseCheckExtendMemory(
-    const int i_extend_size = 0);
+    const int i_extend_size = 0) noexcept;
 
   /** Tailのメモリ拡張
   * @param
   * @return Error Code
   */
-  int tailExtendMemory();
+  int tailExtendMemory() noexcept;
 
   /** Memoryサイズを最適化する
   * @param i_tail_last_index Tail配列のデータが格納されている最終Index
   * @return Error Code
   */
   int optimizeMemory(
-    const int i_tail_last_index);
+    const int i_tail_last_index) noexcept;
 
   /** 入力データからTRIE構造を構築する
   * @param trie_array       構築したTRIE構造
@@ -255,6 +255,19 @@ private:
     std::vector<uint64_t>& tail_positions,
     const ByteArrayDatas& datas) const noexcept;
 
+  /** 2つの配列を先頭から検索して内容が異なるIndexを取得
+  * @param i_result 検索結果
+  * @param i_length 検索最大Index
+  * @param c_first  検索配列1
+  * @param c_second 検索配列2
+  * @return
+  */
+  constexpr void searchSameIndex(
+    uint64_t& i_result,
+    const uint64_t i_length,
+    const char* c_first,
+    const char* c_second) const noexcept;
+
 private:
   /** BASE配列 */
   int* i_base_;
@@ -283,19 +296,20 @@ class DASearchParts
 {
 public:
   /** zero clear */
-  DASearchParts() : i_base_(0), i_check_(0), i_tail_(0) {}
+  DASearchParts() noexcept : i_base_(0), i_check_(0), i_tail_(0) {}
 
   /** cost削減のためvirtualは付加しない */
-  ~DASearchParts() {}
+  ~DASearchParts() noexcept {}
 
   /** Copy */
-  DASearchParts(const DASearchParts& parts) : i_base_(parts.i_base_), i_check_(parts.i_check_), i_tail_(parts.i_tail_) {}
+  DASearchParts(const DASearchParts& parts) noexcept
+    : i_base_(parts.i_base_), i_check_(parts.i_check_), i_tail_(parts.i_tail_) {}
 
   /** init */
-  void init() {
-    i_base_ = 0;
+  constexpr void init() noexcept {
+    i_base_  = 0;
     i_check_ = 0;
-    i_tail_ = 0;
+    i_tail_  = 0;
   }
 
 public:
@@ -314,14 +328,14 @@ class TrieLayerData
 {
 public:
   /** initのみ */
-  TrieLayerData(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts)
+  TrieLayerData(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts) noexcept
     : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), trie_parts_(trie_parts) {}
 
   /** cost削減のためvirtualは付加しない */
-  ~TrieLayerData() {}
+  ~TrieLayerData() noexcept {}
 
   /** move */
-  TrieLayerData(TrieLayerData&& trie_layer_data)
+  TrieLayerData(TrieLayerData&& trie_layer_data) noexcept
     : c_byte_(trie_layer_data.c_byte_),
       i_next_trie_index_(trie_layer_data.i_next_trie_index_),
       trie_parts_(trie_layer_data.trie_parts_) {}
@@ -356,7 +370,7 @@ public:
     const uint64_t i_tail_size,
     const int64_t result) : c_tail_(c_tail), i_tail_size_(i_tail_size), i_result_(result) {}
 
-  ~TrieParts()
+  ~TrieParts() noexcept
   {
     if (c_tail_) {
       delete[] c_tail_;
@@ -397,7 +411,6 @@ public:
   ByteArrayData(const ByteArrayData& byte_array) : i_byte_length_(byte_array.i_byte_length_), result_(byte_array.result_)
   {
     if (i_byte_length_) {
-      exit(0);
       c_byte_ = new char[i_byte_length_];
       memcpy(c_byte_, byte_array.c_byte_, i_byte_length_);
     }
@@ -424,7 +437,7 @@ public:
   }
 
   /** ByteDataを削除 */
-  void deleteByteData()
+  void deleteByteData() noexcept
   {
     if (c_byte_) {
       delete[] c_byte_;
@@ -447,7 +460,7 @@ class ByteArrayDatas : public std::vector<ByteArrayData>
 {
 public:
   ByteArrayDatas() {}
-  ~ByteArrayDatas()
+  ~ByteArrayDatas() noexcept
   {
     for (auto& data : *this) {
       data.deleteByteData();
@@ -462,7 +475,7 @@ public:
   void addData(
     const char* c_byte,
     const uint64_t i_byte_length,
-    const int64_t result)
+    const int64_t result) noexcept
   {
     if (i_byte_length != 0) {
       push_back(std::move(ByteArrayData(c_byte, i_byte_length, result)));
@@ -470,7 +483,7 @@ public:
   }
 
   /** sort */
-  void sort()
+  void sort() noexcept
   {
     std::sort(begin(), end(), [] (const ByteArrayData& first, const ByteArrayData& second) {
       bool b_second_large(first.i_byte_length_ < second.i_byte_length_);

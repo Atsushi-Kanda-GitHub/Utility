@@ -24,7 +24,7 @@ DoubleArray::~DoubleArray()
 /* @param b_init_size サイズを初期化するか */
 /* @return Error Code                      */
 int DoubleArray::keepMemory(
-  const bool b_init_size)
+  const bool b_init_size) noexcept
 {
   deleteMemory(b_init_size);  /* 既存のデータ構造を破棄 */
 
@@ -54,7 +54,7 @@ int DoubleArray::keepMemory(
 /* メモリ破棄                              */
 /* @param b_init_size サイズを初期化するか */
 void DoubleArray::deleteMemory(
-  const bool b_init_size)
+  const bool b_init_size) noexcept
 {
   if (i_base_)        delete[] i_base_;
   if (i_check_)       delete[] i_check_;
@@ -76,7 +76,7 @@ void DoubleArray::deleteMemory(
 
 /* データが作成されているかチェック              */
 /* @return true : データ作成されてる  false : 空 */
-bool DoubleArray::checkInit() const
+bool DoubleArray::checkInit() const noexcept
 {
   return i_base_ != nullptr;
 }
@@ -86,7 +86,7 @@ bool DoubleArray::checkInit() const
 /* @param i_extend_size 拡張する配列サイズ */
 /* @return Error Code                      */
 int DoubleArray::baseCheckExtendMemory(
-  const int i_extend_size)
+  const int i_extend_size) noexcept
 {
   try {
     uint64_t i_new_array_size(i_extend_size ? i_array_size_ + i_extend_size : (i_array_size_ * I_EXTEND_MEMORY));
@@ -114,7 +114,7 @@ int DoubleArray::baseCheckExtendMemory(
 
 /* Tailのメモリ拡張   */
 /* @return Error Code */
-int DoubleArray::tailExtendMemory()
+int DoubleArray::tailExtendMemory() noexcept
 {
   try {
     int i_new_tail_size(static_cast<int>(i_tail_char_size_ * I_EXTEND_MEMORY));
@@ -145,7 +145,7 @@ int DoubleArray::tailExtendMemory()
 /* @param i_tail_last_index Tail配列のデータが格納されている最終Index */
 /* @return Error Code                                                 */
 int DoubleArray::optimizeMemory(
-  const int i_tail_last_index)
+  const int i_tail_last_index) noexcept
 {
   if (i_array_size_ == 0)
     return I_NO_ERROR;
@@ -199,7 +199,7 @@ int DoubleArray::optimizeMemory(
 /* @return 0 : 正常終了  0以外 : 異常終了 */
 int DoubleArray::createDoubleArray(
   ByteArrayDatas& add_datas,
-  const int i_option)
+  const int i_option) noexcept
 {
   if (add_datas.empty())
     return I_NO_ERROR;
@@ -357,12 +357,15 @@ int DoubleArray::getBaseValue(
   const int i_option,
   const vector<TrieLayerData>& tries) noexcept
 {
+  auto trie_begin = cbegin(tries);
+  auto trie_end   = cend(tries);
+
   /* 既存のバイト情報の最大Base値を検索 */
   i_base_value = 0;
   if (i_option & I_SPEED_PRIORITY) {
-    for (const auto& trie : tries) {
-      if (base_value_array[trie.c_byte_] > i_base_value) {
-        i_base_value = base_value_array[trie.c_byte_];
+    for (auto trie = trie_begin; trie != trie_end; ++trie) {
+      if (base_value_array[trie->c_byte_] > i_base_value) {
+        i_base_value = base_value_array[trie->c_byte_];
       }
     }
   }
@@ -379,8 +382,8 @@ int DoubleArray::getBaseValue(
       }
 
       bool b_find(true);
-      for (const auto& trie : tries) {
-        int i_check_index(trie.c_byte_ + i_base_value);
+      for (auto trie = trie_begin; trie != trie_end; ++trie) {
+        int i_check_index(trie->c_byte_ + i_base_value);
         if (i_check_[i_check_index] != I_ARRAY_NO_DATA) {
           b_find = false;
           break;
@@ -443,40 +446,63 @@ void DoubleArray::createOverlapPositions(
   vector<uint64_t>& tail_positions,
   const ByteArrayDatas& datas) const noexcept
 {
-  uint64_t i_last_data_index(datas.size() - 1);
-  for (uint64_t i = 0; i <= i_last_data_index; ++i) {
+  if (datas.size() == 1) {
+    tail_positions[0] = 0;
+    return;
+  }
+
+  /* 先頭 */
+  auto top  = datas.cbegin();
+  auto next = top;
+  ++next;
+  uint64_t i_top_same_index(top->i_byte_length_);
+  searchSameIndex(i_top_same_index, top->i_byte_length_, top->c_byte_, next->c_byte_);
+  if (i_top_same_index == next->i_byte_length_) (*tail_positions.begin()) = numeric_limits<uint64_t>::max();
+  else                                          (*tail_positions.begin()) = i_top_same_index;
+
+  /* 末尾 */
+  auto last    = datas.crbegin();
+  auto one_ago = last;
+  ++last;
+  uint64_t i_last_same_index = 0;
+  searchSameIndex(i_last_same_index, min(last->i_byte_length_, one_ago->i_byte_length_), last->c_byte_, one_ago->c_byte_);
+  (*tail_positions.rbegin()) = i_last_same_index;
+
+  /* 先頭末尾を除く */
+  uint64_t i_before_same_index(i_top_same_index);
+  for (uint64_t i = 1, i_last = datas.size() - 1; i < i_last; ++i) {
     const auto& current = datas[i];
+    const auto& after   = datas[i+1];
     const char* c_current_byte = current.c_byte_;
-    uint64_t i_before_same_index(0), i_after_same_index(0);
+    uint64_t i_after_same_index(current.i_byte_length_);
 
-    if (i != 0) {
-      const auto& before = datas[i - 1];
-      const char* c_before_byte = before.c_byte_;
-      const int64_t i_length(min(current.i_byte_length_, before.i_byte_length_));
-      for (auto n = 0; n < i_length; ++n) {
-        if (c_current_byte[n] != c_before_byte[n]) {
-          i_before_same_index = n;
-          break;
-        }
-      }
+    searchSameIndex(i_after_same_index,  current.i_byte_length_, c_current_byte, after.c_byte_);
+    if (i_after_same_index == after.i_byte_length_) {
+      tail_positions[i] = numeric_limits<uint64_t>::max();  /* 同一データ混在 */
+    } else {
+      tail_positions[i] = (i_before_same_index < i_after_same_index ? i_after_same_index : i_before_same_index);
+      i_before_same_index = i_after_same_index;
     }
+  }
+}
 
-    if (i != i_last_data_index) {
-      const auto& after = datas[i + 1];
-      const char* c_after_byte = after.c_byte_;
-      i_after_same_index = current.i_byte_length_;
-      for (uint64_t n = 0; n < i_after_same_index; ++n) {
-        if (c_current_byte[n] != c_after_byte[n]) {
-          i_after_same_index = n;
-          break;
-        }
-      }
-      if (i_after_same_index == after.i_byte_length_) {
-        tail_positions[i] = numeric_limits<uint64_t>::max();  /* 同一データ混在 */
-        continue;
-      }
+
+/* 2つの配列を先頭から検索して内容が異なるIndexを取得 */
+/* @param i_result 検索結果                           */
+/* @param i_length 検索最大Index                      */
+/* @param c_first  検索配列1                          */
+/* @param c_second 検索配列2                          */
+constexpr void DoubleArray::searchSameIndex(
+  uint64_t& i_result,
+  const uint64_t i_length,
+  const char* c_first,
+  const char* c_second) const noexcept
+{
+  for (uint64_t i = 0; i < i_length; ++i) {
+    if (c_first[i] != c_second[i]) {
+      i_result = i;
+      break;
     }
-    tail_positions[i] = (i_before_same_index < i_after_same_index ? i_after_same_index : i_before_same_index);
   }
 }
 
@@ -492,9 +518,9 @@ int64_t DoubleArray::search(
   const char* c_byte,
   uint64_t i_byte_length) const noexcept
 {
-  uint64_t i;
+  uint64_t i(0);
   int i_base_index(0), i_check_index(0);
-  for (i = 0; i <= i_byte_length; ++i) { /* 終端記号の分があるので<=とする */
+  for (; i <= i_byte_length; ++i) { /* 終端記号の分があるので<=とする */
     i_check_index = i_base_[i_base_index] + static_cast<unsigned char>(c_byte[i]);
     if (i_check_[i_check_index] != i_base_index) {
       return I_SEARCH_NOHIT;  /* データが存在しない */
@@ -592,7 +618,7 @@ bool DoubleArray::searchContinue(
 /* @return I_DA_NO_ERROR : 正常終了 0以外 : 異常終了 */
 int DoubleArray::writeBinary(
   int64_t& i_write_size,
-  FILE* fp) const
+  FILE* fp) const noexcept
 {
   try {
     if (checkInit()) {
@@ -635,7 +661,7 @@ int DoubleArray::writeBinary(
 /* @return 0 : 正常終了 0以外 : 異常終了     */
 int DoubleArray::readBinary(
   int64_t& i_read_size,
-  FILE* fp)
+  FILE* fp) noexcept
 {
   try {
     if (1 != fread(&i_array_size_, sizeof(i_array_size_), 1, fp)) /* 配列サイズ */
@@ -693,7 +719,7 @@ void DoubleArray::getDoubleArrayData(
   const int*& i_base,
   const int*& i_check,
   const int64_t*& i_tail_result,
-  const char*& c_tail_char) const
+  const char*& c_tail_char) const noexcept
 {
   i_array_size       = i_array_size_;
   i_tail_char_size   = i_tail_char_size_;
@@ -720,7 +746,7 @@ int DoubleArray::setDoubleArrayData(
   const int* i_base,
   const int* i_check,
   const int64_t* i_tail_result,
-  const char* c_tail_char)
+  const char* c_tail_char) noexcept
 {
   i_array_size_       = i_array_size;       /* 配列サイズ       */
   i_tail_char_size_   = i_tail_char_size;   /* Tail文字列サイズ */
@@ -752,7 +778,7 @@ int DoubleArray::setDoubleArrayData(
 /* @param i_reuslt_index 復元する結果Index                       */
 void DoubleArray::reproductionFromIndex(
   char*& c_info,
-  const int64_t i_result_index) const
+  const int64_t i_result_index) const noexcept
 {
   c_info = nullptr;
   uint64_t i_tail_last_index(0);
