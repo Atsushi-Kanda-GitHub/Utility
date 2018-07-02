@@ -52,7 +52,7 @@ void calcDA(const vector<pair<string, int>>& test_datas, const int i_count)
     auto create_start = chrono::system_clock::now();
 
     bool b_effective = true;
-    ByteArrayDatas byte_datas;
+    ByteArrays byte_datas;
     for (const auto& test_data : test_datas) {
       if (b_effective) {
         byte_datas.addData(test_data.first.c_str(), test_data.first.length(), test_data.second);

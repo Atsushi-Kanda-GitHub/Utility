@@ -25,8 +25,8 @@
 class TrieParts;
 class TrieLayerData;
 class DASearchParts;
-class ByteArrayData;
-class ByteArrayDatas;
+class ByteArray;
+class ByteArrays;
 
 /** DoubleArrayの構築&検索 */
 class DoubleArray
@@ -64,7 +64,7 @@ public:
   * @return 0 : 正常終了  0以外 : 異常終了
   */
   int createDoubleArray(
-    ByteArrayDatas& add_datas,
+    ByteArrays& add_datas,
     const int i_option = I_SPEED_PRIORITY) noexcept;
 
   /** 検索する
@@ -179,11 +179,11 @@ private:
     const bool b_init_size = false) noexcept;
 
   /** BaseCheckのメモリ拡張
-  * @param i_extend_size 拡張する配列サイズ
+  * @param i_lower_limit 拡張最低領域
   * @return Error Code
   */
   int baseCheckExtendMemory(
-    const int i_extend_size = 0) noexcept;
+    const uint64_t i_lower_limit) noexcept;
 
   /** Tailのメモリ拡張
   * @param
@@ -205,7 +205,7 @@ private:
   */
   void createTrie(
     TrieArray& trie_array,
-    const ByteArrayDatas& byte_array_datas) const noexcept;
+    const ByteArrays& byte_array_datas) const noexcept;
 
   /** Trie構造から再帰的にDoubleArrayを構築する
   * @param i_tail_index     書き込み開始TailIndex
@@ -246,14 +246,16 @@ private:
     int& i_tail_index,
     const TrieParts* trie_parts) noexcept;
 
-  /** 重複Index情報を作成
-  * @param tail_positions Tailに格納する文字列Index
-  * @param datas          全追加データ
+  /** SameIndex情報を作成
+  * @param i_max_length 最長データ長
+  * @param positions    start,tail Indexx
+  * @param datas        全追加データ
   * @return
   */
   void createOverlapPositions(
-    std::vector<uint64_t>& tail_positions,
-    const ByteArrayDatas& datas) const noexcept;
+    uint64_t& i_max_length,
+    std::vector<std::pair<uint64_t, uint64_t>>& positions,
+    const ByteArrays& datas) const noexcept;
 
   /** 2つの配列を先頭から検索して内容が異なるIndexを取得
   * @param i_result 検索結果
@@ -389,14 +391,14 @@ public:
   int64_t i_result_;
 };
 
-/** DoubleArray作成する際の1つのデータ構造 */
-class ByteArrayData
+/** DoubleArrayに格納するデータ構造 */
+class ByteArray
 {
 public:
-  ByteArrayData() : c_byte_(nullptr), i_byte_length_(0), result_(0) {}
+  ByteArray() : c_byte_(nullptr), i_byte_length_(0), result_(0) {}
 
   /** コンストラクタ */
-  ByteArrayData(
+  ByteArray(
     const char* c_byte,
     const uint64_t i_byte_length,
     const int64_t result) : i_byte_length_(i_byte_length), result_(result)
@@ -408,7 +410,7 @@ public:
   }
 
   /** copy */
-  ByteArrayData(const ByteArrayData& byte_array) : i_byte_length_(byte_array.i_byte_length_), result_(byte_array.result_)
+  ByteArray(const ByteArray& byte_array) : i_byte_length_(byte_array.i_byte_length_), result_(byte_array.result_)
   {
     if (i_byte_length_) {
       c_byte_ = new char[i_byte_length_];
@@ -417,18 +419,14 @@ public:
   }
 
   /** 何もしない */
-  ~ByteArrayData() {}
+  ~ByteArray() {}
 
   /** move */
-  ByteArrayData(ByteArrayData&& byte_array) noexcept
-  {
-    c_byte_        = byte_array.c_byte_;
-    i_byte_length_ = byte_array.i_byte_length_;
-    result_        = byte_array.result_;
-  }
+  ByteArray(ByteArray&& byte_array) noexcept
+    : c_byte_(byte_array.c_byte_), i_byte_length_(byte_array.i_byte_length_), result_(byte_array.result_) {}
 
   /** = operator */
-  ByteArrayData& operator = (const ByteArrayData& byte_array)
+  ByteArray& operator = (const ByteArray& byte_array)
   {
     c_byte_        = byte_array.c_byte_;
     i_byte_length_ = byte_array.i_byte_length_;
@@ -437,7 +435,7 @@ public:
   }
 
   /** ByteDataを削除 */
-  void deleteByteData() noexcept
+  void deleteByteArray() noexcept
   {
     if (c_byte_) {
       delete[] c_byte_;
@@ -456,14 +454,14 @@ public:
 };
 
 /** DoubleArray構築に使用するData */
-class ByteArrayDatas : public std::vector<ByteArrayData>
+class ByteArrays : public std::vector<ByteArray>
 {
 public:
-  ByteArrayDatas() {}
-  ~ByteArrayDatas() noexcept
+  ByteArrays() {}
+  ~ByteArrays() noexcept
   {
     for (auto& data : *this) {
-      data.deleteByteData();
+      data.deleteByteArray();
     }
   }
 
@@ -478,14 +476,14 @@ public:
     const int64_t result) noexcept
   {
     if (i_byte_length != 0) {
-      push_back(std::move(ByteArrayData(c_byte, i_byte_length, result)));
+      push_back(std::move(ByteArray(c_byte, i_byte_length, result)));
     }
   }
 
   /** sort */
   void sort() noexcept
   {
-    std::sort(begin(), end(), [] (const ByteArrayData& first, const ByteArrayData& second) {
+    std::sort(begin(), end(), [] (const ByteArray& first, const ByteArray& second) {
       bool b_second_large(first.i_byte_length_ < second.i_byte_length_);
       const int64_t i_low_size(b_second_large ? first.i_byte_length_ : second.i_byte_length_);
       int i_result(memcmp(first.c_byte_, second.c_byte_, i_low_size));
