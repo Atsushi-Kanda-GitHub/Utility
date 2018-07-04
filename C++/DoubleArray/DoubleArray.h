@@ -23,7 +23,7 @@
 #include <limits>
 
 class TrieParts;
-class TrieLayerData;
+class TrieLayer;
 class DASearchParts;
 class ByteArray;
 class ByteArrays;
@@ -31,7 +31,7 @@ class ByteArrays;
 /** DoubleArrayの構築&検索 */
 class DoubleArray
 {
-  using TrieArray = std::vector<std::vector<TrieLayerData>>;
+  using TrieArray = std::vector<std::vector<TrieLayer>>;
 
 public:
   static constexpr int I_NO_ERROR         = 0x00; /* Normal                     */
@@ -39,8 +39,7 @@ public:
   static constexpr int I_FAILED_MEMORY    = 0x02; /* Memory関連ERROR            */
   static constexpr int I_FAIELD_FILE_IO   = 0x04; /* FILE ERROR                 */
   static constexpr int I_NO_OPTION        = 0x00; /* no option                  */
-  static constexpr int I_SPEED_PRIORITY   = 0x01; /* create speed priority      */
-  static constexpr int I_TAIL_UNITY       = 0x02; /* 検索結果をtrue/falseに変換 */
+  static constexpr int I_TAIL_UNITY       = 0x01; /* 検索結果をtrue/falseに変換 */
   static constexpr int64_t I_HIT_DEFAULT  = 0x01; /* 検索結果統合時の返り値     */
   static constexpr int64_t I_SEARCH_NOHIT = 0x00; /* search no result           */
 
@@ -65,7 +64,7 @@ public:
   */
   int createDoubleArray(
     ByteArrays& add_datas,
-    const int i_option = I_SPEED_PRIORITY) noexcept;
+    const int i_option = I_NO_OPTION) noexcept;
 
   /** 検索する
   * c_byteにはNULLが途中に含まれる可能性がある為、
@@ -199,43 +198,39 @@ private:
     const int i_tail_last_index) noexcept;
 
   /** 入力データからTRIE構造を構築する
-  * @param trie_array       構築したTRIE構造
-  * @param byte_array_datas 基にするデータ
+  * @param trie_array  構築したTRIE構造
+  * @param byte_arrays 基にするデータ
   * @return
   */
   void createTrie(
     TrieArray& trie_array,
-    const ByteArrays& byte_array_datas) const noexcept;
+    const ByteArrays& byte_arrays) const noexcept;
 
   /** Trie構造から再帰的にDoubleArrayを構築する
-  * @param i_tail_index     書き込み開始TailIndex
-  * @param base_value_array BaseValueの値を決定するのに使用
-  * @param trie_array       TRIE全データ
-  * @param i_base_index     基準のBaseCheckIndex
-  * @param i_trie_index     対象のTrieノード群
-  * @param i_option         構築オプション
+  * @param i_tail_index 書き込み開始TailIndex
+  * @param base_array   BaseValueの値を決定するのに使用
+  * @param trie_array   TRIE全データ
+  * @param i_base_index 基準のBaseCheckIndex
+  * @param i_trie_index 対象のTrieノード群
   * @return Error Code
   */
   int recursiveCreateDoubleArray(
     int& i_tail_index,
-    unsigned int* base_value_array,
+    unsigned int* base_array,
     TrieArray& trie_array,
     const int i_base_index,
-    const size_t i_trie_index,
-    const int i_option) noexcept;
+    const size_t i_trie_index) noexcept;
 
   /** Baseの値を求める
-  * @param i_base_value     求めたBase値
-  * @param base_value_array BaseValueの値を決定するのに使用
-  * @param i_option         構築オプション
-  * @param tries            TRIEでの同列情報
+  * @param i_base_value 求めたBase値
+  * @param base_array   BaseValueの値を決定するのに使用
+  * @param layers       TRIEでの同列情報
   * @return Error Code
   */
   int getBaseValue(
     unsigned int& i_base_value,
-    unsigned int* base_value_array,
-    const int i_option,
-    const std::vector<TrieLayerData>& tries) noexcept;
+    unsigned int* base_array,
+    const std::vector<TrieLayer>& layers) noexcept;
 
   /** Tailに情報を設定する
   * @param i_tail_index Tail格納開始位置
@@ -264,7 +259,7 @@ private:
   * @param c_second 検索配列2
   * @return
   */
-  constexpr void searchSameIndex(
+  void searchSameIndex(
     uint64_t& i_result,
     const uint64_t i_length,
     const char* c_first,
@@ -308,7 +303,7 @@ public:
     : i_base_(parts.i_base_), i_check_(parts.i_check_), i_tail_(parts.i_tail_) {}
 
   /** init */
-  constexpr void init() noexcept {
+  void init() noexcept {
     i_base_  = 0;
     i_check_ = 0;
     i_tail_  = 0;
@@ -326,24 +321,24 @@ public:
 };
 
 /** Trie構造の任意のLayerデータ */
-class TrieLayerData
+class TrieLayer
 {
 public:
   /** initのみ */
-  TrieLayerData(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts) noexcept
+  TrieLayer(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts) noexcept
     : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), trie_parts_(trie_parts) {}
 
   /** cost削減のためvirtualは付加しない */
-  ~TrieLayerData() noexcept {}
+  ~TrieLayer() noexcept {}
 
   /** move */
-  TrieLayerData(TrieLayerData&& trie_layer_data) noexcept
+  TrieLayer(TrieLayer&& trie_layer_data) noexcept
     : c_byte_(trie_layer_data.c_byte_),
       i_next_trie_index_(trie_layer_data.i_next_trie_index_),
       trie_parts_(trie_layer_data.trie_parts_) {}
 
   /** = operator */
-  TrieLayerData& operator = (const TrieLayerData& trie_layer_data)
+  TrieLayer& operator = (const TrieLayer& trie_layer_data)
   {
     c_byte_            = trie_layer_data.c_byte_;
     i_next_trie_index_ = trie_layer_data.i_next_trie_index_;
@@ -483,7 +478,7 @@ public:
   /** sort */
   void sort() noexcept
   {
-    std::sort(begin(), end(), [] (const ByteArray& first, const ByteArray& second) {
+    std::sort(begin(), end(), [] (const auto& first, const auto& second) {
       bool b_second_large(first.i_byte_length_ < second.i_byte_length_);
       const int64_t i_low_size(b_second_large ? first.i_byte_length_ : second.i_byte_length_);
       int i_result(memcmp(first.c_byte_, second.c_byte_, i_low_size));
