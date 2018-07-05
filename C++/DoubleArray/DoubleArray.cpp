@@ -5,10 +5,10 @@
 using namespace std;
 
 /* init only */
-DoubleArray::DoubleArray() : i_base_(nullptr), i_check_(nullptr), c_tail_char_(nullptr), i_tail_result_(nullptr),
+DoubleArray::DoubleArray() : i_base_(nullptr), i_check_(nullptr), c_tail_(nullptr), i_result_(nullptr),
                              i_array_size_(I_DEFAULT_ARRAY_SIZE),
-                             i_tail_char_size_(I_DEFAULT_ARRAY_SIZE),
-                             i_tail_result_size_(I_DEFAULT_ARRAY_SIZE)
+                             i_tail_size_(I_DEFAULT_ARRAY_SIZE),
+                             i_result_size_(I_DEFAULT_ARRAY_SIZE)
 {
 }
 
@@ -29,18 +29,18 @@ int DoubleArray::keepMemory(
   deleteMemory(b_init_size);  /* 既存のデータ構造を破棄 */
 
   try {
-    i_base_      = new int[i_array_size_];
-    i_check_     = new int[i_array_size_];
-    c_tail_char_ = new char[i_tail_char_size_];
-    if (i_tail_result_size_) {
-      i_tail_result_ = new int64_t[i_tail_result_size_];
+    i_base_  = new int[i_array_size_];
+    i_check_ = new int[i_array_size_];
+    c_tail_  = new char[i_tail_size_];
+    if (i_result_size_) {
+      i_result_ = new int64_t[i_result_size_];
     }
 
-    memset(i_base_,      0,               sizeof(i_base_[0])      * i_array_size_);
-    memset(i_check_,     I_ARRAY_NO_DATA, sizeof(i_check_[0])     * i_array_size_);
-    memset(c_tail_char_, 0,               sizeof(c_tail_char_[0]) * i_tail_char_size_);
-    if (i_tail_result_size_) {
-      memset(i_tail_result_, 0, sizeof(i_tail_result_[0]) * i_tail_result_size_);
+    memset(i_base_,  0,               sizeof(i_base_[0])  * i_array_size_);
+    memset(i_check_, I_ARRAY_NO_DATA, sizeof(i_check_[0]) * i_array_size_);
+    memset(c_tail_,  0,               sizeof(c_tail_[0])  * i_tail_size_);
+    if (i_result_size_) {
+      memset(i_result_, 0, sizeof(i_result_[0]) * i_result_size_);
     }
   } catch (...) {
     deleteMemory();
@@ -56,20 +56,20 @@ int DoubleArray::keepMemory(
 void DoubleArray::deleteMemory(
   const bool b_init_size) noexcept
 {
-  if (i_base_)        delete[] i_base_;
-  if (i_check_)       delete[] i_check_;
-  if (c_tail_char_)   delete[] c_tail_char_;
-  if (i_tail_result_) delete[] i_tail_result_;
+  if (i_base_)   delete[] i_base_;
+  if (i_check_)  delete[] i_check_;
+  if (c_tail_)   delete[] c_tail_;
+  if (i_result_) delete[] i_result_;
 
-  i_base_        = nullptr;
-  i_check_       = nullptr;
-  c_tail_char_   = nullptr;
-  i_tail_result_ = nullptr;
+  i_base_   = nullptr;
+  i_check_  = nullptr;
+  c_tail_   = nullptr;
+  i_result_ = nullptr;
 
   if (b_init_size) {
-    i_array_size_       = I_DEFAULT_ARRAY_SIZE;
-    i_tail_char_size_   = I_DEFAULT_ARRAY_SIZE;
-    i_tail_result_size_ = I_DEFAULT_ARRAY_SIZE;
+    i_array_size_  = I_DEFAULT_ARRAY_SIZE;
+    i_tail_size_   = I_DEFAULT_ARRAY_SIZE;
+    i_result_size_ = I_DEFAULT_ARRAY_SIZE;
   }
 }
 
@@ -120,21 +120,21 @@ int DoubleArray::baseCheckExtendMemory(
 int DoubleArray::tailExtendMemory() noexcept
 {
   try {
-    int i_new_tail_size(static_cast<int>(i_tail_char_size_ * I_EXTEND_MEMORY));
-    char* c_tail_char      = new char[i_new_tail_size];
-    int64_t* i_tail_result = new int64_t[i_new_tail_size];
+    int i_new_tail_size(static_cast<int>(i_tail_size_ * I_EXTEND_MEMORY));
+    char* c_tail      = new char[i_new_tail_size];
+    int64_t* i_result = new int64_t[i_new_tail_size];
 
-    memset(c_tail_char,   0,              sizeof(c_tail_char[0])   * i_new_tail_size);
-    memset(i_tail_result, 0,              sizeof(i_tail_result[0]) * i_new_tail_size);
-    memcpy(c_tail_char,   c_tail_char_,   sizeof(c_tail_char[0])   * i_tail_char_size_);
-    memcpy(i_tail_result, i_tail_result_, sizeof(i_tail_result[0]) * i_tail_result_size_);
+    memset(c_tail,   0,         sizeof(c_tail[0])   * i_new_tail_size);
+    memset(i_result, 0,         sizeof(i_result[0]) * i_new_tail_size);
+    memcpy(c_tail,   c_tail_,   sizeof(c_tail[0])   * i_tail_size_);
+    memcpy(i_result, i_result_, sizeof(i_result[0]) * i_result_size_);
 
-    delete[] c_tail_char_;
-    delete[] i_tail_result_;
-    c_tail_char_        = c_tail_char;
-    i_tail_result_      = i_tail_result;
-    i_tail_char_size_   = i_new_tail_size;
-    i_tail_result_size_ = i_new_tail_size;
+    delete[] c_tail_;
+    delete[] i_result_;
+    c_tail_        = c_tail;
+    i_result_      = i_result;
+    i_tail_size_   = i_new_tail_size;
+    i_result_size_ = i_new_tail_size;
   } catch (...) {
     deleteMemory();
     return I_FAILED_MEMORY;
@@ -160,7 +160,7 @@ int DoubleArray::optimizeMemory(
     }
   }
 
-  i_tail_char_size_ = i_tail_last_index;
+  i_tail_size_ = i_tail_last_index;
   i_array_size_ += static_cast<int>(0xff);  /* 検索時に不正領域を参照しない対策 */
 
   try {
@@ -175,17 +175,17 @@ int DoubleArray::optimizeMemory(
     i_check_ = i_new_check;
 
     /* Tail文字列情報 */
-    char* c_new_tail_char = new char[i_tail_char_size_];
-    memcpy(c_new_tail_char, c_tail_char_, sizeof(c_new_tail_char[0]) * i_tail_char_size_);
-    delete[] c_tail_char_;
-    c_tail_char_ = c_new_tail_char;
+    char* c_new_tail = new char[i_tail_size_];
+    memcpy(c_new_tail, c_tail_, sizeof(c_new_tail[0]) * i_tail_size_);
+    delete[] c_tail_;
+    c_tail_ = c_new_tail;
 
-    if (i_tail_result_size_) {
-      i_tail_result_size_ = i_tail_char_size_;  /* 最適化サイズに書き換え */
-      int64_t* i_new_tail_result = new int64_t[i_tail_result_size_];
-      memcpy(i_new_tail_result, i_tail_result_, sizeof(i_new_tail_result[0]) * i_tail_result_size_);
-      delete[] i_tail_result_;
-      i_tail_result_ = i_new_tail_result;
+    if (i_result_size_) {
+      i_result_size_ = i_tail_size_;  /* 最適化サイズに書き換え */
+      int64_t* i_new_result = new int64_t[i_result_size_];
+      memcpy(i_new_result, i_result_, sizeof(i_new_result[0]) * i_result_size_);
+      delete[] i_result_;
+      i_result_ = i_new_result;
     }
   } catch (...) {
     deleteMemory();
@@ -225,9 +225,9 @@ int DoubleArray::createDoubleArray(
   }
 
   if (i_option & I_TAIL_UNITY) {
-    delete[] i_tail_result_;
-    i_tail_result_      = nullptr;
-    i_tail_result_size_ = 0;
+    delete[] i_result_;
+    i_result_      = nullptr;
+    i_result_size_ = 0;
   }
 
   return optimizeMemory(i_tail_index);
@@ -359,15 +359,17 @@ int DoubleArray::getBaseValue(
   }
 
   bool b_success(false);
-  auto c_byte_max = layers.rbegin()->c_byte_;
-  while (b_success == false) {
-    for (++i_base_value; i_base_value < i_array_size_; ++i_base_value) {
-      if (i_array_size_ <= (c_byte_max + i_base_value)) {
-        if (baseCheckExtendMemory(i_array_size_)) {
-          return I_FAILED_MEMORY;
-        }
+  unsigned char c_byte_max = layers.rbegin()->c_byte_;
+  do {
+    ++i_base_value;
+    if (i_array_size_ <= (c_byte_max + i_base_value)) {
+      if (baseCheckExtendMemory(c_byte_max + i_base_value)) {
+        return I_FAILED_MEMORY;
       }
+    }
 
+    uint64_t i_count = i_array_size_ - (c_byte_max + i_base_value);
+    for (uint64_t i = 0; i < i_count; ++i, ++i_base_value) {
       bool b_find(true);
       for (auto layer = layer_begin; layer != layer_end; ++layer) {
         if (i_check_[layer->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
@@ -380,12 +382,7 @@ int DoubleArray::getBaseValue(
         break;
       }
     }
-    if (b_success == false) {
-      if (baseCheckExtendMemory(i_array_size_)) {  /* メモリが不足 拡張 */
-        return I_FAILED_MEMORY;
-      }
-    }
-  }
+  } while (b_success == false);
 
   for_each (layer_begin, layer_end, [&](const auto& layer) {base_array[layer.c_byte_] = i_base_value;});
 
@@ -401,7 +398,8 @@ int DoubleArray::setTailInfo(
   int& i_tail_index,
   const TrieParts* trie_parts) noexcept
 {
-  while (i_tail_index + trie_parts->i_tail_size_ >= i_tail_char_size_) {
+  while (i_tail_index + trie_parts->i_tail_size_ >= i_tail_size_) {
+  //if (i_tail_size_ <= i_tail_index + trie_parts->i_tail_size_) {
     if (tailExtendMemory()) { /* メモリが不足したので拡張 */
       return I_FAILED_MEMORY;
     }
@@ -409,13 +407,13 @@ int DoubleArray::setTailInfo(
 
   if (trie_parts->c_tail_) {
     for (uint64_t i = 0, i_tail_size = trie_parts->i_tail_size_; i < i_tail_size; ++i) {
-      c_tail_char_[i_tail_index++] = trie_parts->c_tail_[i];
+      c_tail_[i_tail_index++] = trie_parts->c_tail_[i];
     }
     --i_tail_index;
   } else {
-    c_tail_char_[i_tail_index] = C_TAIL_CHAR;
+    c_tail_[i_tail_index] = C_TAIL_CHAR;
   }
-  i_tail_result_[i_tail_index++] = trie_parts->i_result_;
+  i_result_[i_tail_index++] = trie_parts->i_result_;
 
   return I_NO_ERROR;
 }
@@ -514,7 +512,8 @@ int64_t DoubleArray::search(
   uint64_t i(0);
   int i_base_index(0), i_check_index(0);
   for (; i <= i_byte_length; ++i) { /* 終端記号の分があるので<=とする */
-    i_check_index = i_base_[i_base_index] + static_cast<unsigned char>(c_byte[i]);
+    i_check_index  = i_base_[i_base_index];
+    i_check_index += static_cast<unsigned char>(c_byte[i]);
     if (i_check_[i_check_index] != i_base_index) {
       return I_SEARCH_NOHIT;  /* データが存在しない */
     }
@@ -530,11 +529,11 @@ int64_t DoubleArray::search(
   if (i < i_byte_length) {
     ++i;
     uint64_t i_compare_length(i_byte_length - i);
-    if (memcmp(&c_tail_char_[i_tail_index], &c_byte[i], i_compare_length + 1) == 0) {
-      return (i_tail_result_ == nullptr ? I_HIT_DEFAULT : i_tail_result_[i_tail_index + i_compare_length]);
+    if (memcmp(&c_tail_[i_tail_index], &c_byte[i], i_compare_length + 1) == 0) {
+      return (i_result_ == nullptr ? I_HIT_DEFAULT : i_result_[i_tail_index + i_compare_length]);
     }
   } else if (i == i_byte_length) {
-    return (i_tail_result_ == nullptr ? I_HIT_DEFAULT : i_tail_result_[i_tail_index]);
+    return (i_result_ == nullptr ? I_HIT_DEFAULT : i_result_[i_tail_index]);
   }
 
   return I_SEARCH_NOHIT;
@@ -575,8 +574,8 @@ bool DoubleArray::searchContinue(
       if (i_check_[i_base_[search_parts.i_base_]] == search_parts.i_base_) {
         const int i_tail_index(i_base_[i_base_[search_parts.i_base_]]);
         if (i_tail_index < 0) {
-          if (i_tail_result_) result = i_tail_result_[-i_tail_index]; /* ヒット */
-          else                result = I_HIT_DEFAULT;
+          if (i_result_) result = i_result_[-i_tail_index]; /* ヒット */
+          else           result = I_HIT_DEFAULT;
         }
         return true;
       }
@@ -585,7 +584,7 @@ bool DoubleArray::searchContinue(
 
   /* Tail処理 */
   uint64_t i_compare_size(i_byte_length - i_byte_index);
-  if (memcmp(&c_tail_char_[search_parts.i_tail_], &c_byte[i_byte_index], i_compare_size) != 0) {
+  if (memcmp(&c_tail_[search_parts.i_tail_], &c_byte[i_byte_index], i_compare_size) != 0) {
     return false;  /* データが存在しない　Tailの途中で不一致 */
   }
 
@@ -593,9 +592,9 @@ bool DoubleArray::searchContinue(
   search_parts.i_tail_ += static_cast<int>(i_compare_size);
 
   if (i_byte_index >= i_byte_length) {
-    if (c_tail_char_[search_parts.i_tail_] == C_TAIL_CHAR) {
-      if (i_tail_result_) result = i_tail_result_[search_parts.i_tail_];  /* ヒット */
-      else                result = I_HIT_DEFAULT;
+    if (c_tail_[search_parts.i_tail_] == C_TAIL_CHAR) {
+      if (i_result_) result = i_result_[search_parts.i_tail_];  /* ヒット */
+      else           result = I_HIT_DEFAULT;
     } else {
       return true;
     }
@@ -615,24 +614,24 @@ int DoubleArray::writeBinary(
 {
   try {
     if (checkInit()) {
-      fwrite(&i_array_size_,       sizeof(i_array_size_),       1,                 fp);
-      fwrite(&i_tail_char_size_,   sizeof(i_tail_char_size_),   1,                 fp);
-      fwrite(&i_tail_result_size_, sizeof(i_tail_result_size_), 1,                 fp);
-      fwrite(i_base_,              sizeof(i_base_[0]),          i_array_size_,     fp);
-      fwrite(i_check_,             sizeof(i_check_[0]),         i_array_size_,     fp);
-      fwrite(c_tail_char_,         sizeof(c_tail_char_[0]),     i_tail_char_size_, fp);
-      if (i_tail_result_size_) {
-        fwrite(i_tail_result_, sizeof(i_tail_result_[0]), i_tail_result_size_, fp);
+      fwrite(&i_array_size_,  sizeof(i_array_size_),  1,             fp);
+      fwrite(&i_tail_size_,   sizeof(i_tail_size_),   1,             fp);
+      fwrite(&i_result_size_, sizeof(i_result_size_), 1,             fp);
+      fwrite(i_base_,         sizeof(i_base_[0]),     i_array_size_, fp);
+      fwrite(i_check_,        sizeof(i_check_[0]),    i_array_size_, fp);
+      fwrite(c_tail_,         sizeof(c_tail_[0]),     i_tail_size_,  fp);
+      if (i_result_size_) {
+        fwrite(i_result_, sizeof(i_result_[0]), i_result_size_, fp);
       }
 
       i_write_size += sizeof(i_array_size_);
-      i_write_size += sizeof(i_tail_char_size_);
-      i_write_size += sizeof(i_tail_result_size_);
-      i_write_size += sizeof(i_base_[0])      * i_array_size_;
-      i_write_size += sizeof(i_check_[0])     * i_array_size_;
-      i_write_size += sizeof(c_tail_char_[0]) * i_tail_char_size_;
-      if (i_tail_result_size_) {
-        i_write_size += sizeof(i_tail_result_[0]) * i_tail_result_size_;
+      i_write_size += sizeof(i_tail_size_);
+      i_write_size += sizeof(i_result_size_);
+      i_write_size += sizeof(i_base_[0])  * i_array_size_;
+      i_write_size += sizeof(i_check_[0]) * i_array_size_;
+      i_write_size += sizeof(c_tail_[0])  * i_tail_size_;
+      if (i_result_size_) {
+        i_write_size += sizeof(i_result_[0]) * i_result_size_;
       }
     } else {
       int i_zero(0);
@@ -661,29 +660,29 @@ int DoubleArray::readBinary(
       throw;
 
     if (i_array_size_) {
-      if ((1 != fread(&i_tail_char_size_,   sizeof(i_tail_char_size_),   1, fp))  /* Tail文字列サイズ */
-      ||  (1 != fread(&i_tail_result_size_, sizeof(i_tail_result_size_), 1, fp)) /* Tail結果サイズ   */
+      if ((1 != fread(&i_tail_size_,   sizeof(i_tail_size_),   1, fp)) /* Tail文字列サイズ */
+      ||  (1 != fread(&i_result_size_, sizeof(i_result_size_), 1, fp)) /* Tail結果サイズ   */
       ||  (keepMemory())) /* 配列サイズが確定したのでメモリ確保 */
         throw;
 
-      if ((static_cast<size_t>(i_array_size_)     != fread(i_base_,      sizeof(i_base_[0]),      i_array_size_,     fp))   /* Base     */
-      ||  (static_cast<size_t>(i_array_size_)     != fread(i_check_,     sizeof(i_check_[0]),     i_array_size_,     fp))   /* Check    */
-      ||  (static_cast<size_t>(i_tail_char_size_) != fread(c_tail_char_, sizeof(c_tail_char_[0]), i_tail_char_size_, fp)))  /* Tail文字 */
+      if ((static_cast<size_t>(i_array_size_) != fread(i_base_,  sizeof(i_base_[0]),  i_array_size_, fp))   /* Base     */
+      ||  (static_cast<size_t>(i_array_size_) != fread(i_check_, sizeof(i_check_[0]), i_array_size_, fp))   /* Check    */
+      ||  (static_cast<size_t>(i_tail_size_)  != fread(c_tail_,  sizeof(c_tail_[0]),  i_tail_size_,  fp)))  /* Tail文字 */
         throw;
 
-      if (i_tail_result_size_) {
-        if (static_cast<size_t>(i_tail_result_size_) != fread(i_tail_result_, sizeof(i_tail_result_[0]), i_tail_result_size_, fp)) /* Tail結果 */
+      if (i_result_size_) {
+        if (static_cast<size_t>(i_result_size_) != fread(i_result_, sizeof(i_result_[0]), i_result_size_, fp)) /* Tail結果 */
           throw;
       } else {
-        i_tail_result_ = nullptr;
+        i_result_ = nullptr;
       }
 
-      i_read_size += sizeof(i_tail_char_size_);
-      i_read_size += sizeof(i_tail_result_size_);
+      i_read_size += sizeof(i_tail_size_);
+      i_read_size += sizeof(i_result_size_);
       i_read_size += sizeof(i_base_[0])  * i_array_size_;
       i_read_size += sizeof(i_check_[0]) * i_array_size_;
-      if (i_tail_result_size_) {
-        i_read_size += sizeof(i_tail_result_[0]) * i_tail_result_size_;
+      if (i_result_size_) {
+        i_read_size += sizeof(i_result_[0]) * i_result_size_;
       }
     } else {
       i_read_size += sizeof(i_array_size_);
@@ -697,65 +696,65 @@ int DoubleArray::readBinary(
 }
 
 
-/* 内部データを取得する                       */
-/* @param i_array_size       配列サイズ       */
-/* @param i_tail_char_size   Tail文字列サイズ */
-/* @param i_tail_result_size Tail結果サイズ   */
-/* @param i_base             Base配列         */
-/* @param i_check            Check配列        */
-/* @param i_tail_result      Tail結果配列     */
-/* @param c_tail_char        Tail文字配列     */
+/* 内部データを取得する                  */
+/* @param i_array_size  配列サイズ       */
+/* @param i_tail_size   Tail文字列サイズ */
+/* @param i_result_size Tail結果サイズ   */
+/* @param i_base        Base配列         */
+/* @param i_check       Check配列        */
+/* @param i_result      Tail結果配列     */
+/* @param c_tail        Tail文字配列     */
 void DoubleArray::getDoubleArrayData(
   uint64_t& i_array_size,
-  uint64_t& i_tail_char_size,
-  uint64_t& i_tail_result_size,
+  uint64_t& i_tail_size,
+  uint64_t& i_result_size,
   const int*& i_base,
   const int*& i_check,
-  const int64_t*& i_tail_result,
-  const char*& c_tail_char) const noexcept
+  const int64_t*& i_result,
+  const char*& c_tail) const noexcept
 {
-  i_array_size       = i_array_size_;
-  i_tail_char_size   = i_tail_char_size_;
-  i_tail_result_size = i_tail_result_size_;
-  i_base             = i_base_;
-  i_check            = i_check_;
-  i_tail_result      = i_tail_result_;
-  c_tail_char        = c_tail_char_;
+  i_array_size  = i_array_size_;
+  i_tail_size   = i_tail_size_;
+  i_result_size = i_result_size_;
+  i_base        = i_base_;
+  i_check       = i_check_;
+  i_result      = i_result_;
+  c_tail        = c_tail_;
 }
 
 
-/* 内部データを外部から設定する               */
-/* @param i_array_size       配列サイズ       */
-/* @param i_tail_char_size   Tail文字列サイズ */
-/* @param i_tail_result_size Tail結果サイズ   */
-/* @param i_base             Base配列         */
-/* @param i_check            Check配列        */
-/* @param i_tail_result      Tail結果配列     */
-/* @param c_tail_char        Tail文字配列     */
+/* 内部データを外部から設定する          */
+/* @param i_array_size  配列サイズ       */
+/* @param i_tail_size   Tail文字列サイズ */
+/* @param i_result_size Tail結果サイズ   */
+/* @param i_base        Base配列         */
+/* @param i_check       Check配列        */
+/* @param i_result      Tail結果配列     */
+/* @param c_tail        Tail文字配列     */
 int DoubleArray::setDoubleArrayData(
   int i_array_size,
-  int i_tail_char_size,
-  int i_tail_result_size,
+  int i_tail_size,
+  int i_result_size,
   const int* i_base,
   const int* i_check,
-  const int64_t* i_tail_result,
-  const char* c_tail_char) noexcept
+  const int64_t* i_result,
+  const char* c_tail) noexcept
 {
-  i_array_size_       = i_array_size;       /* 配列サイズ       */
-  i_tail_char_size_   = i_tail_char_size;   /* Tail文字列サイズ */
-  i_tail_result_size_ = i_tail_result_size; /* Tail結果サイズ   */
+  i_array_size_  = i_array_size;  /* 配列サイズ       */
+  i_tail_size_   = i_tail_size;   /* Tail文字列サイズ */
+  i_result_size_ = i_result_size; /* Tail結果サイズ   */
 
   if (keepMemory()) /* 配列サイズが確定したのでメモリ確保 */
     return I_FAILED_MEMORY;
 
   try {
-    memcpy(i_base_,      i_base,      sizeof(int)  * i_array_size_);
-    memcpy(i_check_,     i_check,     sizeof(int)  * i_array_size_);
-    memcpy(c_tail_char_, c_tail_char, sizeof(char) * i_tail_char_size_);
-    if (i_tail_result) {
-      memcpy(i_tail_result_, i_tail_result, sizeof(int) * i_tail_result_size_);
+    memcpy(i_base_,  i_base,  sizeof(i_base_[0])  * i_array_size_);
+    memcpy(i_check_, i_check, sizeof(i_check_[0]) * i_array_size_);
+    memcpy(c_tail_,  c_tail,  sizeof(c_tail_[0])  * i_tail_size_);
+    if (i_result) {
+      memcpy(i_result_, i_result, sizeof(i_result_[0]) * i_result_size_);
     } else {
-      i_tail_result_ = nullptr;
+      i_result_ = nullptr;
     }
   } catch (...) {
     deleteMemory();
@@ -774,21 +773,21 @@ void DoubleArray::reproductionFromIndex(
   const int64_t i_result_index) const noexcept
 {
   c_info = nullptr;
-  uint64_t i_tail_last_index(0);
-  for (uint64_t i = 0; i < i_tail_result_size_; ++i) {
-    if (i_tail_result_[i] == i_result_index) {
-      i_tail_last_index = i;
+  uint64_t i_last(0);
+  for (uint64_t i = 0; i < i_result_size_; ++i) {
+    if (i_result_[i] == i_result_index) {
+      i_last = i;
     }
   }
 
-  if (i_tail_last_index == 0) {
+  if (i_last == 0) {
     return; /* 指定のIndexは無し */
   }
 
   vector<char> datas;
-  int64_t i_tail_index(--i_tail_last_index);  /* 終端記号を指しているので一つ前にする */
-  while (c_tail_char_[i_tail_index]) {
-    datas.push_back(c_tail_char_[i_tail_index--]);  /* Tail部分のデータ */
+  int64_t i_tail_index(--i_last);  /* 終端記号を指しているので一つ前にする */
+  while (c_tail_[i_tail_index]) {
+    datas.push_back(c_tail_[i_tail_index--]);  /* Tail部分のデータ */
   }
   ++i_tail_index; /* Tail先頭の位置にするのでIncrement */
 

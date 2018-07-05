@@ -110,42 +110,42 @@ public:
     FILE* fp) noexcept;
 
   /** 内部データを取得する
-  * @param i_array_size       配列サイズ
-  * @param i_tail_char_size   Tail文字列サイズ
-  * @param i_tail_result_size Tail結果サイズ
-  * @param i_base             Base配列
-  * @param i_check            Check配列
-  * @param i_tail_result      Tail結果配列
-  * @param c_tail_char        Tail文字配列
+  * @param i_array_size  配列サイズ
+  * @param i_tail_size   Tail文字列サイズ
+  * @param i_result_size Tail結果サイズ
+  * @param i_base        Base配列
+  * @param i_check       Check配列
+  * @param i_result      Tail結果配列
+  * @param c_tail        Tail文字配列
   * @return
   */
   void getDoubleArrayData(
     uint64_t& i_array_size,
-    uint64_t& i_tail_char_size,
-    uint64_t& i_tail_result_size,
+    uint64_t& i_tail_size,
+    uint64_t& i_result_size,
     const int*& i_base,
     const int*& i_check,
-    const int64_t*& i_tail_result,
-    const char*& c_tail_char) const noexcept;
+    const int64_t*& i_result,
+    const char*& c_tail) const noexcept;
 
   /** 内部データを外部から設定する
-  * @param i_array_size       配列サイズ
-  * @param i_tail_char_size   Tail文字列サイズ
-  * @param i_tail_result_size Tail結果サイズ
-  * @param i_base             Base配列
-  * @param i_check            Check配列
-  * @param i_tail_result      Tail結果配列
-  * @param c_tail_char        Tail文字配列
+  * @param i_array_size  配列サイズ
+  * @param i_tail_size   Tail文字列サイズ
+  * @param i_result_size Tail結果サイズ
+  * @param i_base        Base配列
+  * @param i_check       Check配列
+  * @param i_result      Tail結果配列
+  * @param c_tail        Tail文字配列
   * @return
   */
   int setDoubleArrayData(
     int i_array_size,
-    int i_tail_char_size,
-    int i_tail_result_size,
+    int i_tail_size,
+    int i_result_size,
     const int* i_base,
     const int* i_check,
-    const int64_t* i_tail_result,
-    const char* c_tail_char) noexcept;
+    const int64_t* i_result,
+    const char* c_tail) noexcept;
 
   /** データが作成されているかチェック
   * @param
@@ -273,19 +273,19 @@ private:
   int* i_check_;
 
   /** TAIL文字配列 */
-  char* c_tail_char_;
+  char* c_tail_;
 
-  /** TAIL結果配列 */
-  int64_t* i_tail_result_;
+  /** 結果配列 */
+  int64_t* i_result_;
 
   /** 要素数サイズ */
   uint64_t i_array_size_;
 
   /** Tail文字列サイズ */
-  uint64_t i_tail_char_size_;
+  uint64_t i_tail_size_;
 
   /** Tail結果配列サイズ */
-  uint64_t i_tail_result_size_;
+  uint64_t i_result_size_;
 };
 
 /** 検索経過状態情報 */
