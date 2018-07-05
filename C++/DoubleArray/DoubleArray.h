@@ -185,10 +185,11 @@ private:
     const uint64_t i_lower_limit) noexcept;
 
   /** Tailのメモリ拡張
-  * @param
+  * @param i_lower_limit 拡張最低領域
   * @return Error Code
   */
-  int tailExtendMemory() noexcept;
+  int tailExtendMemory(
+    const uint64_t i_lower_limit) noexcept;
 
   /** Memoryサイズを最適化する
   * @param i_tail_last_index Tail配列のデータが格納されている最終Index

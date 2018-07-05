@@ -115,15 +115,20 @@ int DoubleArray::baseCheckExtendMemory(
 }
 
 
-/* Tailのメモリ拡張   */
-/* @return Error Code */
-int DoubleArray::tailExtendMemory() noexcept
+/* Tailのメモリ拡張                  */
+/* @param i_lower_limit 拡張最低領域 */
+/* @return Error Code                */
+int DoubleArray::tailExtendMemory(
+  const uint64_t i_lower_limit) noexcept
 {
   try {
-    int i_new_tail_size(static_cast<int>(i_tail_size_ * I_EXTEND_MEMORY));
+    uint64_t i_new_tail_size(i_tail_size_);
+    do {
+      i_new_tail_size *= I_EXTEND_MEMORY;
+    } while (i_new_tail_size <= i_lower_limit);
+
     char* c_tail      = new char[i_new_tail_size];
     int64_t* i_result = new int64_t[i_new_tail_size];
-
     memset(c_tail,   0,         sizeof(c_tail[0])   * i_new_tail_size);
     memset(i_result, 0,         sizeof(i_result[0]) * i_new_tail_size);
     memcpy(c_tail,   c_tail_,   sizeof(c_tail[0])   * i_tail_size_);
@@ -249,17 +254,19 @@ void DoubleArray::createTrie(
 
   size_t i_used_index(0);
   vector<uint64_t> trie_indexes(i_max_length);
-  const uint64_t i_max_value = numeric_limits<uint64_t>::max();
-  for (size_t i = 0, i_size = byte_arrays.size(); i < i_size; ++i) {
-    const auto i_start_index(positions[i].first);
+  constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
+  auto position       = positions.cbegin();
+  auto byte_array     = byte_arrays.cbegin();
+  auto byte_array_end = byte_arrays.cend();
+  for (; byte_array != byte_array_end; ++byte_array, ++position) {
+    const auto i_start_index(position->first);
     if (i_start_index == i_max_value) /* データが重複かチェック */
       continue;
 
-    uint64_t i_tail_index(positions[i].second);
+    uint64_t i_tail_index(position->second);
     size_t i_trie_index(trie_indexes[i_start_index]);
-    const auto& byte_array = byte_arrays[i];
     for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
-      unsigned char c_one_word = byte_array.c_byte_[n];
+      unsigned char c_one_word = byte_array->c_byte_[n];
       trie_indexes[n] = i_trie_index;
       auto& layers    = trie_array[i_trie_index];
       auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
@@ -274,17 +281,17 @@ void DoubleArray::createTrie(
 
     char* c_tail(nullptr);
     int64_t i_tail_size(0);
-    if (i_tail_index < byte_array.i_byte_length_ - 1) {
-      i_tail_size = byte_array.i_byte_length_ - i_tail_index - 1;
+    if (i_tail_index < byte_array->i_byte_length_ - 1) {
+      i_tail_size = byte_array->i_byte_length_ - i_tail_index - 1;
       c_tail      = new char[i_tail_size];
-      memcpy(c_tail, (byte_array.c_byte_ + i_tail_index + 1), i_tail_size);
+      memcpy(c_tail, (byte_array->c_byte_ + i_tail_index + 1), i_tail_size);
     }
 
     ++i_used_index;
     trie_indexes[i_tail_index] = i_trie_index;
-    unsigned char c_one_word = byte_array.c_byte_[i_tail_index];
+    unsigned char c_one_word = byte_array->c_byte_[i_tail_index];
     auto& layers    = trie_array[i_trie_index];
-    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array.result_);
+    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array->result_);
     auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
                                   [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
     layers.insert(layer, move(TrieLayer(c_one_word, I_TRIE_TAIL_VALUE, trie_parts)));
@@ -398,11 +405,9 @@ int DoubleArray::setTailInfo(
   int& i_tail_index,
   const TrieParts* trie_parts) noexcept
 {
-  while (i_tail_index + trie_parts->i_tail_size_ >= i_tail_size_) {
-  //if (i_tail_size_ <= i_tail_index + trie_parts->i_tail_size_) {
-    if (tailExtendMemory()) { /* メモリが不足したので拡張 */
-      return I_FAILED_MEMORY;
-    }
+  if ((i_tail_size_ <= i_tail_index + trie_parts->i_tail_size_)
+  &&  (tailExtendMemory(i_tail_index + trie_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
+    return I_FAILED_MEMORY;
   }
 
   if (trie_parts->c_tail_) {
