@@ -364,7 +364,6 @@ int DoubleArray::getBaseValue(
       i_base_value = base_array[layer->c_byte_];
     }
   }
-
   bool b_success(false);
   unsigned char c_byte_max = layers.rbegin()->c_byte_;
   do {
@@ -437,22 +436,31 @@ void DoubleArray::createOverlapPositions(
     return;
   }
 
+  auto sameIndex = [](uint64_t& i_result, const uint64_t i_length, const char* c_first, const char* c_second) {
+    for (uint64_t i = 0; i < i_length; ++i) {
+      if (c_first[i] != c_second[i]) {
+        i_result = i;
+        break;
+      }
+    }
+  };
+
   /* 先頭 */
   auto top  = datas.cbegin();
   auto next = top;
   ++next;
   i_max_length = top->i_byte_length_;
   uint64_t i_top_same_index(top->i_byte_length_);
-  searchSameIndex(i_top_same_index, top->i_byte_length_, top->c_byte_, next->c_byte_);
+  sameIndex(i_top_same_index, top->i_byte_length_, top->c_byte_, next->c_byte_);
   if (i_top_same_index == next->i_byte_length_) positions.begin()->first = numeric_limits<uint64_t>::max();
   else                                          positions.begin()->second = i_top_same_index;
 
   /* 末尾 */
   auto last    = datas.crbegin();
   auto one_ago = last;
-  ++last;
+  ++one_ago;
   uint64_t i_last_same_index = 0;
-  searchSameIndex(i_last_same_index, min(last->i_byte_length_, one_ago->i_byte_length_), last->c_byte_, one_ago->c_byte_);
+  sameIndex(i_last_same_index, min(last->i_byte_length_, one_ago->i_byte_length_), last->c_byte_, one_ago->c_byte_);
   auto& last_position  = *positions.rbegin();
   last_position.first  = i_last_same_index;
   last_position.second = i_last_same_index;
@@ -470,34 +478,14 @@ void DoubleArray::createOverlapPositions(
     if (i_max_length < i_after_same_index) {
       i_max_length = i_after_same_index;
     }
- 
-    searchSameIndex(i_after_same_index,  current.i_byte_length_, c_current_byte, after.c_byte_);
+
+    sameIndex(i_after_same_index, current.i_byte_length_, c_current_byte, after.c_byte_);
     if (i_after_same_index == after.i_byte_length_) {
       positions[i].first = numeric_limits<uint64_t>::max();  /* 同一データ混在 */
     } else {
       positions[i].first  = i_before_same_index;
       positions[i].second = (i_before_same_index < i_after_same_index ? i_after_same_index : i_before_same_index);
       i_before_same_index = i_after_same_index;
-    }
-  }
-}
-
-
-/* 2つの配列を先頭から検索して内容が異なるIndexを取得 */
-/* @param i_result 検索結果                           */
-/* @param i_length 検索最大Index                      */
-/* @param c_first  検索配列1                          */
-/* @param c_second 検索配列2                          */
-void DoubleArray::searchSameIndex(
-  uint64_t& i_result,
-  const uint64_t i_length,
-  const char* c_first,
-  const char* c_second) const noexcept
-{
-  for (uint64_t i = 0; i < i_length; ++i) {
-    if (c_first[i] != c_second[i]) {
-      i_result = i;
-      break;
     }
   }
 }

@@ -253,19 +253,6 @@ private:
     std::vector<std::pair<uint64_t, uint64_t>>& positions,
     const ByteArrays& datas) const noexcept;
 
-  /** 2つの配列を先頭から検索して内容が異なるIndexを取得
-  * @param i_result 検索結果
-  * @param i_length 検索最大Index
-  * @param c_first  検索配列1
-  * @param c_second 検索配列2
-  * @return
-  */
-  void searchSameIndex(
-    uint64_t& i_result,
-    const uint64_t i_length,
-    const char* c_first,
-    const char* c_second) const noexcept;
-
 private:
   /** BASE配列 */
   int* i_base_;
