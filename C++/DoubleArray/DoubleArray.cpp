@@ -1,6 +1,4 @@
 #include "DoubleArray.h"
-#include <fstream>
-#include <unordered_map>
 
 using namespace std;
 
@@ -201,6 +199,7 @@ int DoubleArray::optimizeMemory(
 }
 
 
+
 /* DoubleArrayを構築する                  */
 /* @param add_datas DoubleArray構築データ */
 /* @param i_option  構築オプション        */
@@ -217,7 +216,6 @@ int DoubleArray::createDoubleArray(
   /* Trie構築 */
   TrieArray trie_array;
   createTrie(trie_array, add_datas);
-
   if (keepMemory(true)) { /* メモリ確保 */
     return I_FAILED_MEMORY;
   }
@@ -287,7 +285,6 @@ void DoubleArray::createTrie(
       memcpy(c_tail, (byte_array->c_byte_ + i_tail_index + 1), i_tail_size);
     }
 
-    ++i_used_index;
     trie_indexes[i_tail_index] = i_trie_index;
     unsigned char c_one_word = byte_array->c_byte_[i_tail_index];
     auto& layers    = trie_array[i_trie_index];
@@ -296,7 +293,7 @@ void DoubleArray::createTrie(
                                   [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
     layers.insert(layer, move(TrieLayer(c_one_word, I_TRIE_TAIL_VALUE, trie_parts)));
   }
-  trie_array.resize(i_used_index);
+  trie_array.resize(++i_used_index);
 }
 
 
@@ -364,30 +361,27 @@ int DoubleArray::getBaseValue(
       i_base_value = base_array[layer->c_byte_];
     }
   }
+
+  ++i_base_value;
   bool b_success(false);
   unsigned char c_byte_max = layers.rbegin()->c_byte_;
   do {
-    ++i_base_value;
     if (i_array_size_ <= (c_byte_max + i_base_value)) {
       if (baseCheckExtendMemory(c_byte_max + i_base_value)) {
         return I_FAILED_MEMORY;
       }
     }
 
-    uint64_t i_count = i_array_size_ - (c_byte_max + i_base_value);
-    for (uint64_t i = 0; i < i_count; ++i, ++i_base_value) {
-      bool b_find(true);
+    uint64_t i_limit = i_array_size_ - c_byte_max;
+    do {
+      b_success = true;
       for (auto layer = layer_begin; layer != layer_end; ++layer) {
         if (i_check_[layer->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
-          b_find = false;
+          b_success = false;
           break;
         }
       }
-      if (b_find) {
-        b_success = true;
-        break;
-      }
-    }
+    } while (b_success == false && ++i_base_value <= i_limit);
   } while (b_success == false);
 
   for_each (layer_begin, layer_end, [&](const auto& layer) {base_array[layer.c_byte_] = i_base_value;});
@@ -410,22 +404,23 @@ int DoubleArray::setTailInfo(
   }
 
   if (trie_parts->c_tail_) {
-    for (uint64_t i = 0, i_tail_size = trie_parts->i_tail_size_; i < i_tail_size; ++i) {
-      c_tail_[i_tail_index++] = trie_parts->c_tail_[i];
-    }
+    memcpy(&c_tail_[i_tail_index], trie_parts->c_tail_, trie_parts->i_tail_size_);
+    i_tail_index += static_cast<int>(trie_parts->i_tail_size_);
     --i_tail_index;
   } else {
     c_tail_[i_tail_index] = C_TAIL_CHAR;
   }
+
   i_result_[i_tail_index++] = trie_parts->i_result_;
 
   return I_NO_ERROR;
 }
 
 
-/* 重複Index情報作成                  */
-/* @param positions start,tail Index  */
-/* @param datas          全追加データ */
+/* 重複Index情報作成                    */
+/* @param i_max_length 最長データ長     */
+/* @param positions    start,tail Index */
+/* @param datas        全追加データ     */
 void DoubleArray::createOverlapPositions(
   uint64_t& i_max_length,
   vector<pair<uint64_t, uint64_t>>& positions,
