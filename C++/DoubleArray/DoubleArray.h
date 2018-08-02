@@ -45,7 +45,6 @@ public:
 
   static constexpr int I_ARRAY_NO_DATA      =  -1;  /* 配列初期値          */
   static constexpr int I_EXTEND_MEMORY      =   2;  /* 配列拡張倍率        */
-  static constexpr int I_EXTEND_TRIE        =   4;  /* TRIE拡張倍率        */
   static constexpr int I_DEFAULT_ARRAY_SIZE = 256;  /* defaultの配列サイズ */
   static constexpr char C_TAIL_CHAR         = 0x00; /* TAILの末尾文字      */
   static constexpr size_t I_TRIE_TAIL_VALUE = std::numeric_limits<size_t>::max();
@@ -459,7 +458,7 @@ public:
     const int64_t result) noexcept
   {
     if (i_byte_length != 0) {
-      push_back(std::move(ByteArray(c_byte, i_byte_length, result)));
+      emplace_back(c_byte, i_byte_length, result);
     }
   }
 

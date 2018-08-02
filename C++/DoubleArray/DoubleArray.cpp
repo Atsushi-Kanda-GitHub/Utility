@@ -90,7 +90,7 @@ int DoubleArray::baseCheckExtendMemory(
     uint64_t i_new_array_size(i_array_size_);
     do {
       i_new_array_size *= I_EXTEND_MEMORY;
-    } while (i_new_array_size <= i_lower_limit);
+    } while (i_new_array_size < i_lower_limit);
 
     int* i_new_base  = new int[i_new_array_size];
     int* i_new_check = new int[i_new_array_size];
@@ -123,7 +123,7 @@ int DoubleArray::tailExtendMemory(
     uint64_t i_new_tail_size(i_tail_size_);
     do {
       i_new_tail_size *= I_EXTEND_MEMORY;
-    } while (i_new_tail_size <= i_lower_limit);
+    } while (i_new_tail_size < i_lower_limit);
 
     char* c_tail      = new char[i_new_tail_size];
     int64_t* i_result = new int64_t[i_new_tail_size];
@@ -245,10 +245,11 @@ void DoubleArray::createTrie(
   const ByteArrays& byte_arrays) const noexcept
 {
   uint64_t i_max_length;
-  size_t i_trie_array_size(byte_arrays.size());  /* 適当に入力データ数(根拠なし) */
-  trie_array.resize(i_trie_array_size);
   vector<pair<uint64_t, uint64_t>> positions(byte_arrays.size(), make_pair(0, 0)); /* TailPosition */
   createOverlapPositions(i_max_length, positions, byte_arrays); /* TailPositionデータ作成 */
+
+  vector<pair<size_t, TrieLayer>> layers;
+  layers.reserve(byte_arrays.size());
 
   size_t i_used_index(0);
   vector<uint64_t> trie_indexes(i_max_length);
@@ -266,15 +267,8 @@ void DoubleArray::createTrie(
     for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
       unsigned char c_one_word = byte_array->c_byte_[n];
       trie_indexes[n] = i_trie_index;
-      auto& layers    = trie_array[i_trie_index];
-      auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
-                                    [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
-      i_trie_index = (++i_used_index);
-      layers.insert(layer, move(TrieLayer(c_one_word, i_used_index, nullptr)));
-      if (i_trie_array_size <= i_used_index) {
-        i_trie_array_size *= I_EXTEND_TRIE;
-        trie_array.resize(i_trie_array_size);
-      }
+      layers.emplace_back(i_trie_index, move(TrieLayer(c_one_word, ++i_used_index, nullptr)));
+      i_trie_index = i_used_index;
     }
 
     char* c_tail(nullptr);
@@ -286,14 +280,22 @@ void DoubleArray::createTrie(
     }
 
     trie_indexes[i_tail_index] = i_trie_index;
-    unsigned char c_one_word = byte_array->c_byte_[i_tail_index];
-    auto& layers    = trie_array[i_trie_index];
     auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array->result_);
-    auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
-                                  [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
-    layers.insert(layer, move(TrieLayer(c_one_word, I_TRIE_TAIL_VALUE, trie_parts)));
+    layers.emplace_back(i_trie_index, move(TrieLayer(byte_array->c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
   }
+
   trie_array.resize(++i_used_index);
+  for (auto& layer : layers) {
+    trie_array[layer.first].emplace_back(move(layer.second));
+  }
+
+  for (auto& trie : trie_array) {
+    if (trie.size() > 1) {
+      sort(begin(trie), end(trie), [] (const auto& first, const auto& second) {
+        return first.c_byte_ < second.c_byte_;
+      });
+    }
+  }
 }
 
 
@@ -318,7 +320,9 @@ int DoubleArray::recursiveCreateDoubleArray(
   i_base_[i_base_index] = i_base_value;
 
   /* 再帰処理する前にcheckを設定 */
-  for_each (begin(layers), end(layers), [&](const auto& trie) {i_check_[trie.c_byte_ + i_base_value] = i_base_index;});
+  for (auto& trie : layers) {
+    i_check_[trie.c_byte_ + i_base_value] = i_base_index;
+  }
 
   for (auto& layer : layers) {
     int i_insert(layer.c_byte_ + i_base_value);
@@ -351,14 +355,11 @@ int DoubleArray::getBaseValue(
   unsigned int* base_array,
   const vector<TrieLayer>& layers) noexcept
 {
-  auto layer_begin = cbegin(layers);
-  auto layer_end   = cend(layers);
-
   /* 既存のバイト情報の最大Base値を検索 */
   i_base_value = 0;
-  for (auto layer = layer_begin; layer != layer_end; ++layer) {
-    if (base_array[layer->c_byte_] > i_base_value) {
-      i_base_value = base_array[layer->c_byte_];
+  for (const auto& layer : layers) {
+    if (base_array[layer.c_byte_] > i_base_value) {
+      i_base_value = base_array[layer.c_byte_];
     }
   }
 
@@ -375,16 +376,18 @@ int DoubleArray::getBaseValue(
     uint64_t i_limit = i_array_size_ - c_byte_max;
     do {
       b_success = true;
-      for (auto layer = layer_begin; layer != layer_end; ++layer) {
-        if (i_check_[layer->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
+      for (const auto& layer : layers) {
+        if (i_check_[layer.c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
           b_success = false;
           break;
         }
       }
-    } while (b_success == false && ++i_base_value <= i_limit);
+    } while (b_success == false && ++i_base_value < i_limit);
   } while (b_success == false);
 
-  for_each (layer_begin, layer_end, [&](const auto& layer) {base_array[layer.c_byte_] = i_base_value;});
+  for (const auto& layer : layers) {
+    base_array[layer.c_byte_] = i_base_value;
+  }
 
   return I_NO_ERROR;
 }
