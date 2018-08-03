@@ -254,18 +254,17 @@ void DoubleArray::createTrie(
   size_t i_used_index(0);
   vector<uint64_t> trie_indexes(i_max_length);
   constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
-  auto position       = positions.cbegin();
-  auto byte_array     = byte_arrays.cbegin();
-  auto byte_array_end = byte_arrays.cend();
-  for (; byte_array != byte_array_end; ++byte_array, ++position) {
+  auto position = positions.cbegin();
+  for (const auto& byte_array : byte_arrays) {
     const auto i_start_index(position->first);
+    const auto i_tail_index(position->second);
+    ++position;
     if (i_start_index == i_max_value) /* データが重複かチェック */
       continue;
 
-    uint64_t i_tail_index(position->second);
     size_t i_trie_index(trie_indexes[i_start_index]);
     for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
-      unsigned char c_one_word = byte_array->c_byte_[n];
+      unsigned char c_one_word = byte_array.c_byte_[n];
       trie_indexes[n] = i_trie_index;
       layers.emplace_back(i_trie_index, move(TrieLayer(c_one_word, ++i_used_index, nullptr)));
       i_trie_index = i_used_index;
@@ -273,15 +272,15 @@ void DoubleArray::createTrie(
 
     char* c_tail(nullptr);
     int64_t i_tail_size(0);
-    if (i_tail_index < byte_array->i_byte_length_ - 1) {
-      i_tail_size = byte_array->i_byte_length_ - i_tail_index - 1;
+    if (i_tail_index < byte_array.i_byte_length_ - 1) {
+      i_tail_size = byte_array.i_byte_length_ - i_tail_index - 1;
       c_tail      = new char[i_tail_size];
-      memcpy(c_tail, (byte_array->c_byte_ + i_tail_index + 1), i_tail_size);
+      memcpy(c_tail, (byte_array.c_byte_ + i_tail_index + 1), i_tail_size);
     }
 
     trie_indexes[i_tail_index] = i_trie_index;
-    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array->result_);
-    layers.emplace_back(i_trie_index, move(TrieLayer(byte_array->c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
+    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array.result_);
+    layers.emplace_back(i_trie_index, move(TrieLayer(byte_array.c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
   }
 
   trie_array.resize(++i_used_index);
