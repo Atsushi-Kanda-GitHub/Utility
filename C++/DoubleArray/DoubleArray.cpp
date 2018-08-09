@@ -248,11 +248,11 @@ void DoubleArray::createTrie(
   vector<pair<uint64_t, uint64_t>> positions(byte_arrays.size(), make_pair(0, 0)); /* TailPosition */
   createOverlapPositions(i_max_length, positions, byte_arrays); /* TailPositionデータ作成 */
 
-  vector<pair<size_t, TrieLayer>> layers;
+  vector<pair<size_t, TrieNode>> layers;
   layers.reserve(byte_arrays.size());
 
-  size_t i_used_index(0);
-  vector<uint64_t> trie_indexes(i_max_length);
+  uint64_t i_used_index(0);
+  vector<uint64_t> trie_indexes(i_max_length, 0);
   constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
   auto position = positions.cbegin();
   for (const auto& byte_array : byte_arrays) {
@@ -262,11 +262,10 @@ void DoubleArray::createTrie(
     if (i_start_index == i_max_value) /* データが重複かチェック */
       continue;
 
-    size_t i_trie_index(trie_indexes[i_start_index]);
+    uint64_t i_trie_index(trie_indexes[i_start_index]);
     for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
-      unsigned char c_one_word = byte_array.c_byte_[n];
       trie_indexes[n] = i_trie_index;
-      layers.emplace_back(i_trie_index, move(TrieLayer(c_one_word, ++i_used_index, nullptr)));
+      layers.emplace_back(i_trie_index, move(TrieNode(byte_array.c_byte_[n], ++i_used_index, nullptr)));
       i_trie_index = i_used_index;
     }
 
@@ -279,8 +278,8 @@ void DoubleArray::createTrie(
     }
 
     trie_indexes[i_tail_index] = i_trie_index;
-    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array.result_);
-    layers.emplace_back(i_trie_index, move(TrieLayer(byte_array.c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
+    auto trie_parts = new TrieNodeParts(c_tail, i_tail_size, byte_array.result_);
+    layers.emplace_back(i_trie_index, move(TrieNode(byte_array.c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
   }
 
   trie_array.resize(++i_used_index);
@@ -325,13 +324,13 @@ int DoubleArray::recursiveCreateDoubleArray(
 
   for (auto& layer : layers) {
     int i_insert(layer.c_byte_ + i_base_value);
-    if (layer.trie_parts_) {
+    if (layer.node_parts_) {
       i_base_[i_insert] = (-i_tail_index);  /* TailIndexはマイナス値 */
 
-      if (setTailInfo(i_tail_index, layer.trie_parts_)) {
+      if (setTailInfo(i_tail_index, layer.node_parts_)) {
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
-      delete layer.trie_parts_;
+      delete layer.node_parts_;
     }
     if (layer.i_next_trie_index_ != I_TRIE_TAIL_VALUE) {
       if (recursiveCreateDoubleArray(i_tail_index, base_array, trie_array, i_insert, layer.i_next_trie_index_)) {
@@ -352,7 +351,7 @@ int DoubleArray::recursiveCreateDoubleArray(
 int DoubleArray::getBaseValue(
   unsigned int& i_base_value,
   unsigned int* base_array,
-  const vector<TrieLayer>& layers) noexcept
+  const vector<TrieNode>& layers) noexcept
 {
   /* 既存のバイト情報の最大Base値を検索 */
   i_base_value = 0;
@@ -394,26 +393,26 @@ int DoubleArray::getBaseValue(
 
 /* Tailに情報を設定する                 */
 /* @param i_tail_index Tail格納開始位置 */
-/* @param trie_parts   TrieParts        */
+/* @param node_parts   Trie node parts  */
 /* @return Error code                   */
 int DoubleArray::setTailInfo(
   int& i_tail_index,
-  const TrieParts* trie_parts) noexcept
+  const TrieNodeParts* node_parts) noexcept
 {
-  if ((i_tail_size_ <= i_tail_index + trie_parts->i_tail_size_)
-  &&  (tailExtendMemory(i_tail_index + trie_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
+  if ((i_tail_size_ <= i_tail_index + node_parts->i_tail_size_)
+  &&  (tailExtendMemory(i_tail_index + node_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
     return I_FAILED_MEMORY;
   }
 
-  if (trie_parts->c_tail_) {
-    memcpy(&c_tail_[i_tail_index], trie_parts->c_tail_, trie_parts->i_tail_size_);
-    i_tail_index += static_cast<int>(trie_parts->i_tail_size_);
+  if (node_parts->c_tail_) {
+    memcpy(&c_tail_[i_tail_index], node_parts->c_tail_, node_parts->i_tail_size_);
+    i_tail_index += static_cast<int>(node_parts->i_tail_size_);
     --i_tail_index;
   } else {
     c_tail_[i_tail_index] = C_TAIL_CHAR;
   }
 
-  i_result_[i_tail_index++] = trie_parts->i_result_;
+  i_result_[i_tail_index++] = node_parts->i_result_;
 
   return I_NO_ERROR;
 }

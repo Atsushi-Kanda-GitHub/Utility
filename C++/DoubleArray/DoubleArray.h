@@ -22,8 +22,8 @@
 #include <algorithm>
 #include <limits>
 
-class TrieParts;
-class TrieLayer;
+class TrieNodeParts;
+class TrieNode;
 class DASearchParts;
 class ByteArray;
 class ByteArrays;
@@ -31,7 +31,7 @@ class ByteArrays;
 /** DoubleArrayの構築&検索 */
 class DoubleArray
 {
-  using TrieArray = std::vector<std::vector<TrieLayer>>;
+  using TrieArray = std::vector<std::vector<TrieNode>>;
 
 public:
   static constexpr int I_NO_ERROR         = 0x00; /* Normal                     */
@@ -230,16 +230,16 @@ private:
   int getBaseValue(
     unsigned int& i_base_value,
     unsigned int* base_array,
-    const std::vector<TrieLayer>& layers) noexcept;
+    const std::vector<TrieNode>& layers) noexcept;
 
   /** Tailに情報を設定する
   * @param i_tail_index Tail格納開始位置
-  * @param trie_parts   TrieParts
+  * @param node_parts   Trie node parts
   * @return Error code
   */
   int setTailInfo(
     int& i_tail_index,
-    const TrieParts* trie_parts) noexcept;
+    const TrieNodeParts* node_parts) noexcept;
 
   /** SameIndex情報を作成
   * @param i_max_length 最長データ長
@@ -307,29 +307,29 @@ public:
   int i_tail_;
 };
 
-/** Trie構造の任意のLayerデータ */
-class TrieLayer
+/** TrieiNode */
+class TrieNode
 {
 public:
   /** initのみ */
-  TrieLayer(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts) noexcept
-    : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), trie_parts_(trie_parts) {}
+  TrieNode(unsigned char c_byte, uint64_t i_next_trie_index, TrieNodeParts* node_parts) noexcept
+    : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), node_parts_(node_parts) {}
 
   /** cost削減のためvirtualは付加しない */
-  ~TrieLayer() noexcept {}
+  ~TrieNode() noexcept {}
 
   /** move */
-  TrieLayer(TrieLayer&& trie_layer_data) noexcept
-    : c_byte_(trie_layer_data.c_byte_),
-      i_next_trie_index_(trie_layer_data.i_next_trie_index_),
-      trie_parts_(trie_layer_data.trie_parts_) {}
+  TrieNode(TrieNode&& trie_node) noexcept
+    : c_byte_(trie_node.c_byte_),
+      i_next_trie_index_(trie_node.i_next_trie_index_),
+      node_parts_(trie_node.node_parts_) {}
 
   /** = operator */
-  TrieLayer& operator = (const TrieLayer& trie_layer_data)
+  TrieNode& operator = (const TrieNode& trie_node)
   {
-    c_byte_            = trie_layer_data.c_byte_;
-    i_next_trie_index_ = trie_layer_data.i_next_trie_index_;
-    trie_parts_        = trie_layer_data.trie_parts_;
+    c_byte_            = trie_node.c_byte_;
+    i_next_trie_index_ = trie_node.i_next_trie_index_;
+    node_parts_        = trie_node.node_parts_;
     return *this;
   }
 
@@ -338,23 +338,23 @@ public:
   unsigned char c_byte_;
 
   /** 続きのTrieArrayIndex */
-  size_t i_next_trie_index_;
+  uint64_t i_next_trie_index_;
 
-  /** TriePartsInfo */
-  TrieParts* trie_parts_;
+  /** TrieNodePartsInfo */
+  TrieNodeParts* node_parts_;
 };
 
-/** Trie Data Parts DoubleArray構築時に使用 */
-class TrieParts
+/** Trie Node Parts DoubleArray構築時に使用 */
+class TrieNodeParts
 {
 public:
-  TrieParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
-  TrieParts(
+  TrieNodeParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
+  TrieNodeParts(
     char* c_tail,
     const uint64_t i_tail_size,
     const int64_t result) : c_tail_(c_tail), i_tail_size_(i_tail_size), i_result_(result) {}
 
-  ~TrieParts() noexcept
+  ~TrieNodeParts() noexcept
   {
     if (c_tail_) {
       delete[] c_tail_;
