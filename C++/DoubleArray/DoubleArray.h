@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <limits>
 
-class TrieNodeParts;
+class NodeParts;
 class TrieNode;
 class DASearchParts;
 class ByteArray;
@@ -31,8 +31,6 @@ class ByteArrays;
 /** DoubleArrayの構築&検索 */
 class DoubleArray
 {
-  using TrieArray = std::vector<std::vector<TrieNode>>;
-
 public:
   static constexpr int I_NO_ERROR         = 0x00; /* Normal                     */
   static constexpr int I_FAILED_TRIE      = 0x01; /* failed to create TRIE      */
@@ -47,7 +45,6 @@ public:
   static constexpr int I_EXTEND_MEMORY      =   2;  /* 配列拡張倍率        */
   static constexpr int I_DEFAULT_ARRAY_SIZE = 256;  /* defaultの配列サイズ */
   static constexpr char C_TAIL_CHAR         = 0x00; /* TAILの末尾文字      */
-  static constexpr size_t I_TRIE_TAIL_VALUE = std::numeric_limits<size_t>::max();
 
 public:
   /** init only */
@@ -198,48 +195,46 @@ private:
     const int i_tail_last_index) noexcept;
 
   /** 入力データからTRIE構造を構築する
-  * @param trie_array  構築したTRIE構造
+  * @param trie        構築したTRIE構造
   * @param byte_arrays 基にするデータ
   * @return
   */
   void createTrie(
-    TrieArray& trie_array,
+    std::vector<TrieNode*>& trie,
     const ByteArrays& byte_arrays) const noexcept;
 
   /** Trie構造から再帰的にDoubleArrayを構築する
   * @param i_tail_index 書き込み開始TailIndex
   * @param base_array   BaseValueの値を決定するのに使用
-  * @param trie_array   TRIE全データ
+  * @param trie_node    Current TrieNode
   * @param i_base_index 基準のBaseCheckIndex
-  * @param i_trie_index 対象のTrieノード群
   * @return Error Code
   */
   int recursiveCreateDoubleArray(
     int& i_tail_index,
     unsigned int* base_array,
-    TrieArray& trie_array,
-    const int i_base_index,
-    const size_t i_trie_index) noexcept;
+    TrieNode* trie_node,
+    const int i_base_index) noexcept;
 
-  /** Baseの値を求める
+  /** Baseの値を求める ついでにtarget layer rangeも求める
   * @param i_base_value 求めたBase値
   * @param base_array   BaseValueの値を決定するのに使用
-  * @param layers       TRIEでの同列情報
+  * @param trie_node    対象のTrieNodeIndex
   * @return Error Code
   */
   int getBaseValue(
     unsigned int& i_base_value,
     unsigned int* base_array,
-    const std::vector<TrieNode>& layers) noexcept;
+    const TrieNode* trie_node) noexcept;
 
   /** Tailに情報を設定する
   * @param i_tail_index Tail格納開始位置
-  * @param node_parts   Trie node parts
+  * @param node_parts   NodeParts
   * @return Error code
   */
   int setTailInfo(
     int& i_tail_index,
-    const TrieNodeParts* node_parts) noexcept;
+    const NodeParts* node_parts) noexcept;
 
   /** SameIndex情報を作成
   * @param i_max_length 最長データ長
@@ -307,13 +302,16 @@ public:
   int i_tail_;
 };
 
-/** TrieiNode */
+/** Trie Node */
 class TrieNode
 {
 public:
   /** initのみ */
-  TrieNode(unsigned char c_byte, uint64_t i_next_trie_index, TrieNodeParts* node_parts) noexcept
-    : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), node_parts_(node_parts) {}
+  TrieNode(unsigned char c_byte) noexcept : c_byte_(c_byte), p_same_layer_(nullptr), p_child_top_(nullptr), node_parts_(nullptr) {}
+
+  /** initのみ */
+  TrieNode(unsigned char c_byte, TrieNode* p_same_layer, TrieNode* p_next, NodeParts* node_parts) noexcept
+    : c_byte_(c_byte), p_same_layer_(p_same_layer), p_child_top_(p_next), node_parts_(node_parts) {}
 
   /** cost削減のためvirtualは付加しない */
   ~TrieNode() noexcept {}
@@ -321,15 +319,17 @@ public:
   /** move */
   TrieNode(TrieNode&& trie_node) noexcept
     : c_byte_(trie_node.c_byte_),
-      i_next_trie_index_(trie_node.i_next_trie_index_),
+      p_same_layer_(trie_node.p_same_layer_),
+      p_child_top_(trie_node.p_child_top_),
       node_parts_(trie_node.node_parts_) {}
 
   /** = operator */
   TrieNode& operator = (const TrieNode& trie_node)
   {
-    c_byte_            = trie_node.c_byte_;
-    i_next_trie_index_ = trie_node.i_next_trie_index_;
-    node_parts_        = trie_node.node_parts_;
+    c_byte_       = trie_node.c_byte_;
+    p_same_layer_ = trie_node.p_same_layer_;
+    p_child_top_  = trie_node.p_child_top_;
+    node_parts_   = trie_node.node_parts_;
     return *this;
   }
 
@@ -337,24 +337,27 @@ public:
   /** LayerでのByte情報 */
   unsigned char c_byte_;
 
-  /** 続きのTrieArrayIndex */
-  uint64_t i_next_trie_index_;
+  /** Next Same Layer Node */
+  TrieNode* p_same_layer_;
 
-  /** TrieNodePartsInfo */
-  TrieNodeParts* node_parts_;
+  /** 続きのTrieNode */
+  TrieNode* p_child_top_;
+
+  /** NodeParts */
+  NodeParts* node_parts_;
 };
 
 /** Trie Node Parts DoubleArray構築時に使用 */
-class TrieNodeParts
+class NodeParts
 {
 public:
-  TrieNodeParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
-  TrieNodeParts(
+  NodeParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
+  NodeParts(
     char* c_tail,
     const uint64_t i_tail_size,
     const int64_t result) : c_tail_(c_tail), i_tail_size_(i_tail_size), i_result_(result) {}
 
-  ~TrieNodeParts() noexcept
+  ~NodeParts() noexcept
   {
     if (c_tail_) {
       delete[] c_tail_;

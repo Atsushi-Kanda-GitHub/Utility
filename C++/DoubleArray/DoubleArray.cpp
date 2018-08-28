@@ -214,8 +214,8 @@ int DoubleArray::createDoubleArray(
   add_datas.sort(); /* Sort */
 
   /* Trie構築 */
-  TrieArray trie_array;
-  createTrie(trie_array, add_datas);
+  vector<TrieNode*> trie;
+  createTrie(trie, add_datas);
   if (keepMemory(true)) { /* メモリ確保 */
     return I_FAILED_MEMORY;
   }
@@ -223,8 +223,12 @@ int DoubleArray::createDoubleArray(
   /* DoubleArray構築 */
   unsigned int base_array[256] = { 1 }; /* 分岐するNodeのBaseで全ての分岐先に適応する値を探すのに使用 */
   int i_tail_index(1), i_base_index(0); /* BaseとTailの初期値 */
-  if (recursiveCreateDoubleArray(i_tail_index, base_array, trie_array, i_base_index, 0)) {
+  if (recursiveCreateDoubleArray(i_tail_index, base_array, trie[0], i_base_index)) {
     return I_FAILED_MEMORY;
+  }
+
+  for (auto& node : trie) {
+    delete node;
   }
 
   if (i_option & I_TAIL_UNITY) {
@@ -238,132 +242,130 @@ int DoubleArray::createDoubleArray(
 
 
 /* 入力データからTRIE構造を構築する    */
-/* @param trie_array  構築したTRIE構造 */
+/* @param trie        構築したTRIE構造 */
 /* @param byte_arrays 基にするデータ   */
 void DoubleArray::createTrie(
-  TrieArray& trie_array,
+  vector<TrieNode*>& trie,
   const ByteArrays& byte_arrays) const noexcept
 {
   uint64_t i_max_length;
   vector<pair<uint64_t, uint64_t>> positions(byte_arrays.size(), make_pair(0, 0)); /* TailPosition */
   createOverlapPositions(i_max_length, positions, byte_arrays); /* TailPositionデータ作成 */
+  trie.reserve(byte_arrays.size()); /* ReserveSizeは適当 */
 
-  vector<pair<size_t, TrieNode>> layers;
-  layers.reserve(byte_arrays.size());
-
-  uint64_t i_used_index(0);
-  vector<uint64_t> trie_indexes(i_max_length, 0);
+  vector<TrieNode*> trie_nodes(i_max_length, nullptr);
   constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
   auto position = positions.cbegin();
   for (const auto& byte_array : byte_arrays) {
-    const auto i_start_index(position->first);
-    const auto i_tail_index(position->second);
+    const auto i_start(position->first);
+    const auto i_tail(position->second);
     ++position;
-    if (i_start_index == i_max_value) /* データが重複かチェック */
+    if (i_start == i_max_value) /* データが重複かチェック */
       continue;
-
-    uint64_t i_trie_index(trie_indexes[i_start_index]);
-    for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
-      trie_indexes[n] = i_trie_index;
-      layers.emplace_back(i_trie_index, move(TrieNode(byte_array.c_byte_[n], ++i_used_index, nullptr)));
-      i_trie_index = i_used_index;
-    }
 
     char* c_tail(nullptr);
     int64_t i_tail_size(0);
-    if (i_tail_index < byte_array.i_byte_length_ - 1) {
-      i_tail_size = byte_array.i_byte_length_ - i_tail_index - 1;
-      c_tail      = new char[i_tail_size];
-      memcpy(c_tail, (byte_array.c_byte_ + i_tail_index + 1), i_tail_size);
+    if (i_tail < byte_array.i_byte_length_ - 1) {
+      i_tail_size = byte_array.i_byte_length_ - i_tail - 1;
+      c_tail = new char[i_tail_size];
+      memcpy(c_tail, (byte_array.c_byte_ + i_tail + 1), i_tail_size);
     }
 
-    trie_indexes[i_tail_index] = i_trie_index;
-    auto trie_parts = new TrieNodeParts(c_tail, i_tail_size, byte_array.result_);
-    layers.emplace_back(i_trie_index, move(TrieNode(byte_array.c_byte_[i_tail_index], I_TRIE_TAIL_VALUE, trie_parts)));
-  }
-
-  trie_array.resize(++i_used_index);
-  for (auto& layer : layers) {
-    trie_array[layer.first].emplace_back(move(layer.second));
-  }
-
-  for (auto& trie : trie_array) {
-    if (trie.size() > 1) {
-      sort(begin(trie), end(trie), [] (const auto& first, const auto& second) {
-        return first.c_byte_ < second.c_byte_;
-      });
+    auto i_trie = trie.size();
+    for (uint64_t i = i_start; i < i_tail; ++i) {
+      trie.emplace_back(new TrieNode(byte_array.c_byte_[i]));
     }
+
+    auto node_parts = new NodeParts(c_tail, i_tail_size, byte_array.result_);
+    auto last_node  = new TrieNode(byte_array.c_byte_[i_tail], nullptr, nullptr, node_parts);
+    trie.emplace_back(last_node);
+
+    if (trie_nodes[i_start] != nullptr) {
+      trie_nodes[i_start]->p_same_layer_ = trie[i_trie];
+    }
+
+    for (uint64_t i = i_start; i < i_tail; ++i, ++i_trie) {
+      trie_nodes[i] = trie[i_trie];
+      trie_nodes[i]->p_child_top_ = trie[i_trie + 1];
+    }
+    trie_nodes[i_tail] = trie[i_trie];
   }
 }
 
 
 /* @param i_tail_index 書き込み開始TailIndex           */
 /* @param base_array   BaseValueの値を決定するのに使用 */
-/* @param trie_array   TRIE全データ                    */
+/* @param trie         TRIE                            */
+/* @param trie_node    Current TrieNode                */
 /* @param i_base_index 基準のBaseCheckIndex            */
-/* @param i_trie_index 対象のTrieノード群              */
 /* @return Error Code                                  */
 int DoubleArray::recursiveCreateDoubleArray(
   int& i_tail_index,
   unsigned int* base_array,
-  TrieArray& trie_array,
-  const int i_base_index,
-  const size_t i_trie_index) noexcept
+  TrieNode* trie_node,
+  const int i_base_index) noexcept
 {
   unsigned int i_base_value;
-  const auto& layers = trie_array[i_trie_index];
-  if (getBaseValue(i_base_value, base_array, layers)) {
+  if (getBaseValue(i_base_value, base_array, trie_node)) {
     return I_FAILED_MEMORY; /* 構築失敗 */
   }
   i_base_[i_base_index] = i_base_value;
 
   /* 再帰処理する前にcheckを設定 */
-  for (auto& trie : layers) {
-    i_check_[trie.c_byte_ + i_base_value] = i_base_index;
+  auto current_node = trie_node;
+  while (current_node != nullptr) {
+    i_check_[current_node->c_byte_ + i_base_value] = i_base_index;
+    current_node = current_node->p_same_layer_;
   }
 
-  for (auto& layer : layers) {
-    int i_insert(layer.c_byte_ + i_base_value);
-    if (layer.node_parts_) {
+  current_node = trie_node;
+  while (current_node != nullptr) {
+    int i_insert(current_node->c_byte_ + i_base_value);
+    if (current_node->node_parts_) {
       i_base_[i_insert] = (-i_tail_index);  /* TailIndexはマイナス値 */
 
-      if (setTailInfo(i_tail_index, layer.node_parts_)) {
+      if (setTailInfo(i_tail_index, current_node->node_parts_)) {
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
-      delete layer.node_parts_;
+      delete current_node->node_parts_;
     }
-    if (layer.i_next_trie_index_ != I_TRIE_TAIL_VALUE) {
-      if (recursiveCreateDoubleArray(i_tail_index, base_array, trie_array, i_insert, layer.i_next_trie_index_)) {
+    if (current_node->p_child_top_ != nullptr) {
+      if (recursiveCreateDoubleArray(i_tail_index, base_array, current_node->p_child_top_, i_insert)) {
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
     }
+    current_node = current_node->p_same_layer_;
   }
 
   return I_NO_ERROR;
 }
 
 
-/* Baseの値を求める                                    */
-/* @param i_base_value 求めたBase値                    */
-/* @param base_array   BaseValueの値を決定するのに使用 */
-/* @param layers       TRIEでの同列情報                */
-/* @return Error Code                                  */
+/* Baseの値を求める ついでに同LayerLastIndexも求める    */
+/* @param i_base_value  求めたBase値                    */
+/* @param base_array    BaseValueの値を決定するのに使用 */
+/* @param trie_node     Current Trie Node               */
+/* @return Error Code                                   */
 int DoubleArray::getBaseValue(
   unsigned int& i_base_value,
   unsigned int* base_array,
-  const vector<TrieNode>& layers) noexcept
+  const TrieNode* trie_node) noexcept
 {
   /* 既存のバイト情報の最大Base値を検索 */
   i_base_value = 0;
-  for (const auto& layer : layers) {
-    if (base_array[layer.c_byte_] > i_base_value) {
-      i_base_value = base_array[layer.c_byte_];
+
+  unsigned char c_byte_max(0x00);
+  auto current_node = trie_node;
+  do {
+    if (base_array[current_node->c_byte_] > i_base_value) {
+      i_base_value = base_array[current_node->c_byte_];
     }
-  }
+    c_byte_max   = current_node->c_byte_;
+    current_node = current_node->p_same_layer_;
+  } while (current_node != nullptr);
 
   ++i_base_value;
   bool b_success(false);
-  unsigned char c_byte_max = layers.rbegin()->c_byte_;
   do {
     if (i_array_size_ <= (c_byte_max + i_base_value)) {
       if (baseCheckExtendMemory(c_byte_max + i_base_value)) {
@@ -374,18 +376,22 @@ int DoubleArray::getBaseValue(
     uint64_t i_limit = i_array_size_ - c_byte_max;
     do {
       b_success = true;
-      for (const auto& layer : layers) {
-        if (i_check_[layer.c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
+      current_node = trie_node;
+      while (current_node != nullptr) {
+        if (i_check_[current_node->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
           b_success = false;
           break;
         }
+        current_node = current_node->p_same_layer_;
       }
     } while (b_success == false && ++i_base_value < i_limit);
   } while (b_success == false);
 
-  for (const auto& layer : layers) {
-    base_array[layer.c_byte_] = i_base_value;
-  }
+  current_node = trie_node;
+  do {
+    base_array[current_node->c_byte_] = i_base_value;
+    current_node = current_node->p_same_layer_;
+  } while (current_node != nullptr);
 
   return I_NO_ERROR;
 }
@@ -393,11 +399,11 @@ int DoubleArray::getBaseValue(
 
 /* Tailに情報を設定する                 */
 /* @param i_tail_index Tail格納開始位置 */
-/* @param node_parts   Trie node parts  */
+/* @param node_parts   NodeParts        */
 /* @return Error code                   */
 int DoubleArray::setTailInfo(
   int& i_tail_index,
-  const TrieNodeParts* node_parts) noexcept
+  const NodeParts* node_parts) noexcept
 {
   if ((i_tail_size_ <= i_tail_index + node_parts->i_tail_size_)
   &&  (tailExtendMemory(i_tail_index + node_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
