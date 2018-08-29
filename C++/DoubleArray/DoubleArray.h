@@ -195,12 +195,12 @@ private:
     const int i_tail_last_index) noexcept;
 
   /** 入力データからTRIE構造を構築する
-  * @param trie        構築したTRIE構造
+  * @param root_node   構築したTrie Root Node
   * @param byte_arrays 基にするデータ
   * @return
   */
   void createTrie(
-    std::vector<TrieNode*>& trie,
+    TrieNode*& root_node,
     const ByteArrays& byte_arrays) const noexcept;
 
   /** Trie構造から再帰的にDoubleArrayを構築する

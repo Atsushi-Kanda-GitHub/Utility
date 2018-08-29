@@ -199,7 +199,6 @@ int DoubleArray::optimizeMemory(
 }
 
 
-
 /* DoubleArrayを構築する                  */
 /* @param add_datas DoubleArray構築データ */
 /* @param i_option  構築オプション        */
@@ -214,8 +213,8 @@ int DoubleArray::createDoubleArray(
   add_datas.sort(); /* Sort */
 
   /* Trie構築 */
-  vector<TrieNode*> trie;
-  createTrie(trie, add_datas);
+  TrieNode* root_node = nullptr;
+  createTrie(root_node, add_datas);
   if (keepMemory(true)) { /* メモリ確保 */
     return I_FAILED_MEMORY;
   }
@@ -223,12 +222,8 @@ int DoubleArray::createDoubleArray(
   /* DoubleArray構築 */
   unsigned int base_array[256] = { 1 }; /* 分岐するNodeのBaseで全ての分岐先に適応する値を探すのに使用 */
   int i_tail_index(1), i_base_index(0); /* BaseとTailの初期値 */
-  if (recursiveCreateDoubleArray(i_tail_index, base_array, trie[0], i_base_index)) {
+  if (recursiveCreateDoubleArray(i_tail_index, base_array, root_node, i_base_index)) {
     return I_FAILED_MEMORY;
-  }
-
-  for (auto& node : trie) {
-    delete node;
   }
 
   if (i_option & I_TAIL_UNITY) {
@@ -241,17 +236,16 @@ int DoubleArray::createDoubleArray(
 }
 
 
-/* 入力データからTRIE構造を構築する    */
-/* @param trie        構築したTRIE構造 */
-/* @param byte_arrays 基にするデータ   */
+/* 入力データからTRIE構造を構築する          */
+/* @param root_node   構築したTrie Root Node */
+/* @param byte_arrays 基にするデータ         */
 void DoubleArray::createTrie(
-  vector<TrieNode*>& trie,
+  TrieNode*& root_node,
   const ByteArrays& byte_arrays) const noexcept
 {
   uint64_t i_max_length;
   vector<pair<uint64_t, uint64_t>> positions(byte_arrays.size(), make_pair(0, 0)); /* TailPosition */
   createOverlapPositions(i_max_length, positions, byte_arrays); /* TailPositionデータ作成 */
-  trie.reserve(byte_arrays.size()); /* ReserveSizeは適当 */
 
   vector<TrieNode*> trie_nodes(i_max_length, nullptr);
   constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
@@ -271,31 +265,28 @@ void DoubleArray::createTrie(
       memcpy(c_tail, (byte_array.c_byte_ + i_tail + 1), i_tail_size);
     }
 
-    auto i_trie = trie.size();
-    for (uint64_t i = i_start; i < i_tail; ++i) {
-      trie.emplace_back(new TrieNode(byte_array.c_byte_[i]));
+    auto branch_node = trie_nodes[i_start];
+    auto node_parts  = new NodeParts(c_tail, i_tail_size, byte_array.result_);
+    auto next_node   = new TrieNode(byte_array.c_byte_[i_tail], nullptr, nullptr, node_parts);
+    trie_nodes[i_tail] = next_node;
+
+    for (int64_t i = i_tail - 1; i >= static_cast<int64_t>(i_start); --i) {
+      trie_nodes[i] = next_node = new TrieNode(byte_array.c_byte_[i], nullptr, next_node, nullptr);
     }
 
-    auto node_parts = new NodeParts(c_tail, i_tail_size, byte_array.result_);
-    auto last_node  = new TrieNode(byte_array.c_byte_[i_tail], nullptr, nullptr, node_parts);
-    trie.emplace_back(last_node);
-
-    if (trie_nodes[i_start] != nullptr) {
-      trie_nodes[i_start]->p_same_layer_ = trie[i_trie];
+    if (root_node == nullptr) {
+      root_node = trie_nodes[i_start];
     }
 
-    for (uint64_t i = i_start; i < i_tail; ++i, ++i_trie) {
-      trie_nodes[i] = trie[i_trie];
-      trie_nodes[i]->p_child_top_ = trie[i_trie + 1];
+    if (branch_node != nullptr) {
+      branch_node->p_same_layer_ = trie_nodes[i_start];
     }
-    trie_nodes[i_tail] = trie[i_trie];
   }
 }
 
 
 /* @param i_tail_index 書き込み開始TailIndex           */
 /* @param base_array   BaseValueの値を決定するのに使用 */
-/* @param trie         TRIE                            */
 /* @param trie_node    Current TrieNode                */
 /* @param i_base_index 基準のBaseCheckIndex            */
 /* @return Error Code                                  */
@@ -334,7 +325,9 @@ int DoubleArray::recursiveCreateDoubleArray(
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
     }
+    auto delete_node = current_node;
     current_node = current_node->p_same_layer_;
+    delete delete_node;
   }
 
   return I_NO_ERROR;
