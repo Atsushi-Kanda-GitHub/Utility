@@ -16,7 +16,7 @@ void calcHashMap(const vector<pair<string, int>>& test_datas, const int i_count)
 
 int main()
 {
-  string s_file_path("da_test_data.txt");
+  string s_file_path("number.txt");
   //cout << "FilePath : ";
   //cin >> s_file_path;
 
@@ -34,7 +34,7 @@ int main()
   random_device rd;
   mt19937 mt(rd());
   shuffle(test_datas.begin(), test_datas.end(), mt);
-  
+
   calcMap(    test_datas, i_count);
   calcHashMap(test_datas, i_count);
   calcDA(     test_datas, i_count);
