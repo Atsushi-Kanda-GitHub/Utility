@@ -1,6 +1,4 @@
 #include "DoubleArray.h"
-#include <fstream>
-#include <unordered_map>
 
 using namespace std;
 
@@ -92,7 +90,7 @@ int DoubleArray::baseCheckExtendMemory(
     uint64_t i_new_array_size(i_array_size_);
     do {
       i_new_array_size *= I_EXTEND_MEMORY;
-    } while (i_new_array_size <= i_lower_limit);
+    } while (i_new_array_size < i_lower_limit);
 
     int* i_new_base  = new int[i_new_array_size];
     int* i_new_check = new int[i_new_array_size];
@@ -125,7 +123,7 @@ int DoubleArray::tailExtendMemory(
     uint64_t i_new_tail_size(i_tail_size_);
     do {
       i_new_tail_size *= I_EXTEND_MEMORY;
-    } while (i_new_tail_size <= i_lower_limit);
+    } while (i_new_tail_size < i_lower_limit);
 
     char* c_tail      = new char[i_new_tail_size];
     int64_t* i_result = new int64_t[i_new_tail_size];
@@ -215,9 +213,8 @@ int DoubleArray::createDoubleArray(
   add_datas.sort(); /* Sort */
 
   /* Trie構築 */
-  TrieArray trie_array;
-  createTrie(trie_array, add_datas);
-
+  TrieNode* root_node = nullptr;
+  createTrie(root_node, add_datas);
   if (keepMemory(true)) { /* メモリ確保 */
     return I_FAILED_MEMORY;
   }
@@ -225,7 +222,7 @@ int DoubleArray::createDoubleArray(
   /* DoubleArray構築 */
   unsigned int base_array[256] = { 1 }; /* 分岐するNodeのBaseで全ての分岐先に適応する値を探すのに使用 */
   int i_tail_index(1), i_base_index(0); /* BaseとTailの初期値 */
-  if (recursiveCreateDoubleArray(i_tail_index, base_array, trie_array, i_base_index, 0)) {
+  if (recursiveCreateDoubleArray(i_tail_index, base_array, root_node, i_base_index)) {
     return I_FAILED_MEMORY;
   }
 
@@ -239,159 +236,155 @@ int DoubleArray::createDoubleArray(
 }
 
 
-/* 入力データからTRIE構造を構築する    */
-/* @param trie_array  構築したTRIE構造 */
-/* @param byte_arrays 基にするデータ   */
+/* 入力データからTRIE構造を構築する          */
+/* @param root_node   構築したTrie Root Node */
+/* @param byte_arrays 基にするデータ         */
 void DoubleArray::createTrie(
-  TrieArray& trie_array,
+  TrieNode*& root_node,
   const ByteArrays& byte_arrays) const noexcept
 {
   uint64_t i_max_length;
-  size_t i_trie_array_size(byte_arrays.size());  /* 適当に入力データ数(根拠なし) */
-  trie_array.resize(i_trie_array_size);
   vector<pair<uint64_t, uint64_t>> positions(byte_arrays.size(), make_pair(0, 0)); /* TailPosition */
   createOverlapPositions(i_max_length, positions, byte_arrays); /* TailPositionデータ作成 */
 
-  size_t i_used_index(0);
-  vector<uint64_t> trie_indexes(i_max_length);
+  vector<TrieNode*> trie_nodes(i_max_length, nullptr);
   constexpr uint64_t i_max_value = numeric_limits<uint64_t>::max();
-  auto position       = positions.cbegin();
-  auto byte_array     = byte_arrays.cbegin();
-  auto byte_array_end = byte_arrays.cend();
-  for (; byte_array != byte_array_end; ++byte_array, ++position) {
-    const auto i_start_index(position->first);
-    if (i_start_index == i_max_value) /* データが重複かチェック */
+  auto position = positions.cbegin();
+  for (const auto& byte_array : byte_arrays) {
+    const auto i_start(position->first);
+    const auto i_tail(position->second);
+    ++position;
+    if (i_start == i_max_value) /* データが重複かチェック */
       continue;
-
-    uint64_t i_tail_index(position->second);
-    size_t i_trie_index(trie_indexes[i_start_index]);
-    for (uint64_t n = i_start_index; n < i_tail_index; ++n) {
-      unsigned char c_one_word = byte_array->c_byte_[n];
-      trie_indexes[n] = i_trie_index;
-      auto& layers    = trie_array[i_trie_index];
-      auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
-                                    [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
-      i_trie_index = (++i_used_index);
-      layers.insert(layer, move(TrieLayer(c_one_word, i_used_index, nullptr)));
-      if (i_trie_array_size <= i_used_index) {
-        i_trie_array_size *= I_EXTEND_TRIE;
-        trie_array.resize(i_trie_array_size);
-      }
-    }
 
     char* c_tail(nullptr);
     int64_t i_tail_size(0);
-    if (i_tail_index < byte_array->i_byte_length_ - 1) {
-      i_tail_size = byte_array->i_byte_length_ - i_tail_index - 1;
-      c_tail      = new char[i_tail_size];
-      memcpy(c_tail, (byte_array->c_byte_ + i_tail_index + 1), i_tail_size);
+    if (i_tail < byte_array.i_byte_length_ - 1) {
+      i_tail_size = byte_array.i_byte_length_ - i_tail - 1;
+      c_tail = new char[i_tail_size];
+      memcpy(c_tail, (byte_array.c_byte_ + i_tail + 1), i_tail_size);
     }
 
-    ++i_used_index;
-    trie_indexes[i_tail_index] = i_trie_index;
-    unsigned char c_one_word = byte_array->c_byte_[i_tail_index];
-    auto& layers    = trie_array[i_trie_index];
-    auto trie_parts = new TrieParts(c_tail, i_tail_size, byte_array->result_);
-    auto layer      = lower_bound(begin(layers), end(layers), c_one_word,
-                                  [] (const auto& layer, const unsigned char c_byte) {return layer.c_byte_ < c_byte;});
-    layers.insert(layer, move(TrieLayer(c_one_word, I_TRIE_TAIL_VALUE, trie_parts)));
+    auto branch_node = trie_nodes[i_start];
+    auto node_parts  = new NodeParts(c_tail, i_tail_size, byte_array.result_);
+    auto next_node   = new TrieNode(byte_array.c_byte_[i_tail], nullptr, nullptr, node_parts);
+    trie_nodes[i_tail] = next_node;
+
+    for (int64_t i = i_tail - 1; i >= static_cast<int64_t>(i_start); --i) {
+      trie_nodes[i] = next_node = new TrieNode(byte_array.c_byte_[i], nullptr, next_node, nullptr);
+    }
+
+    if (root_node == nullptr) {
+      root_node = trie_nodes[i_start];
+    }
+
+    if (branch_node != nullptr) {
+      branch_node->p_same_layer_ = trie_nodes[i_start];
+    }
   }
-  trie_array.resize(i_used_index);
 }
 
 
 /* @param i_tail_index 書き込み開始TailIndex           */
 /* @param base_array   BaseValueの値を決定するのに使用 */
-/* @param trie_array   TRIE全データ                    */
+/* @param trie_node    Current TrieNode                */
 /* @param i_base_index 基準のBaseCheckIndex            */
-/* @param i_trie_index 対象のTrieノード群              */
 /* @return Error Code                                  */
 int DoubleArray::recursiveCreateDoubleArray(
   int& i_tail_index,
   unsigned int* base_array,
-  TrieArray& trie_array,
-  const int i_base_index,
-  const size_t i_trie_index) noexcept
+  TrieNode* trie_node,
+  const int i_base_index) noexcept
 {
   unsigned int i_base_value;
-  const auto& layers = trie_array[i_trie_index];
-  if (getBaseValue(i_base_value, base_array, layers)) {
+  if (getBaseValue(i_base_value, base_array, trie_node)) {
     return I_FAILED_MEMORY; /* 構築失敗 */
   }
   i_base_[i_base_index] = i_base_value;
 
   /* 再帰処理する前にcheckを設定 */
-  for_each (begin(layers), end(layers), [&](const auto& trie) {i_check_[trie.c_byte_ + i_base_value] = i_base_index;});
+  auto current_node = trie_node;
+  while (current_node != nullptr) {
+    i_check_[current_node->c_byte_ + i_base_value] = i_base_index;
+    current_node = current_node->p_same_layer_;
+  }
 
-  for (auto& layer : layers) {
-    int i_insert(layer.c_byte_ + i_base_value);
-    if (layer.trie_parts_) {
+  current_node = trie_node;
+  while (current_node != nullptr) {
+    int i_insert(current_node->c_byte_ + i_base_value);
+    if (current_node->node_parts_) {
       i_base_[i_insert] = (-i_tail_index);  /* TailIndexはマイナス値 */
 
-      if (setTailInfo(i_tail_index, layer.trie_parts_)) {
+      if (setTailInfo(i_tail_index, current_node->node_parts_)) {
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
-      delete layer.trie_parts_;
+      delete current_node->node_parts_;
     }
-    if (layer.i_next_trie_index_ != I_TRIE_TAIL_VALUE) {
-      if (recursiveCreateDoubleArray(i_tail_index, base_array, trie_array, i_insert, layer.i_next_trie_index_)) {
+    if (current_node->p_child_top_ != nullptr) {
+      if (recursiveCreateDoubleArray(i_tail_index, base_array, current_node->p_child_top_, i_insert)) {
         return I_FAILED_MEMORY; /* 構築失敗 */
       }
     }
+    auto delete_node = current_node;
+    current_node = current_node->p_same_layer_;
+    delete delete_node;
   }
 
   return I_NO_ERROR;
 }
 
 
-/* Baseの値を求める                                    */
-/* @param i_base_value 求めたBase値                    */
-/* @param base_array   BaseValueの値を決定するのに使用 */
-/* @param layers       TRIEでの同列情報                */
-/* @return Error Code                                  */
+/* Baseの値を求める ついでに同LayerLastIndexも求める    */
+/* @param i_base_value  求めたBase値                    */
+/* @param base_array    BaseValueの値を決定するのに使用 */
+/* @param trie_node     Current Trie Node               */
+/* @return Error Code                                   */
 int DoubleArray::getBaseValue(
   unsigned int& i_base_value,
   unsigned int* base_array,
-  const vector<TrieLayer>& layers) noexcept
+  const TrieNode* trie_node) noexcept
 {
-  auto layer_begin = cbegin(layers);
-  auto layer_end   = cend(layers);
-
   /* 既存のバイト情報の最大Base値を検索 */
   i_base_value = 0;
-  for (auto layer = layer_begin; layer != layer_end; ++layer) {
-    if (base_array[layer->c_byte_] > i_base_value) {
-      i_base_value = base_array[layer->c_byte_];
-    }
-  }
 
-  bool b_success(false);
-  unsigned char c_byte_max = layers.rbegin()->c_byte_;
+  unsigned char c_byte_max(0x00);
+  auto current_node = trie_node;
   do {
-    ++i_base_value;
+    if (base_array[current_node->c_byte_] > i_base_value) {
+      i_base_value = base_array[current_node->c_byte_];
+    }
+    c_byte_max   = current_node->c_byte_;
+    current_node = current_node->p_same_layer_;
+  } while (current_node != nullptr);
+
+  ++i_base_value;
+  bool b_success(false);
+  do {
     if (i_array_size_ <= (c_byte_max + i_base_value)) {
       if (baseCheckExtendMemory(c_byte_max + i_base_value)) {
         return I_FAILED_MEMORY;
       }
     }
 
-    uint64_t i_count = i_array_size_ - (c_byte_max + i_base_value);
-    for (uint64_t i = 0; i < i_count; ++i, ++i_base_value) {
-      bool b_find(true);
-      for (auto layer = layer_begin; layer != layer_end; ++layer) {
-        if (i_check_[layer->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
-          b_find = false;
+    uint64_t i_limit = i_array_size_ - c_byte_max;
+    do {
+      b_success = true;
+      current_node = trie_node;
+      while (current_node != nullptr) {
+        if (i_check_[current_node->c_byte_ + i_base_value] != I_ARRAY_NO_DATA) {
+          b_success = false;
           break;
         }
+        current_node = current_node->p_same_layer_;
       }
-      if (b_find) {
-        b_success = true;
-        break;
-      }
-    }
+    } while (b_success == false && ++i_base_value < i_limit);
   } while (b_success == false);
 
-  for_each (layer_begin, layer_end, [&](const auto& layer) {base_array[layer.c_byte_] = i_base_value;});
+  current_node = trie_node;
+  do {
+    base_array[current_node->c_byte_] = i_base_value;
+    current_node = current_node->p_same_layer_;
+  } while (current_node != nullptr);
 
   return I_NO_ERROR;
 }
@@ -399,34 +392,35 @@ int DoubleArray::getBaseValue(
 
 /* Tailに情報を設定する                 */
 /* @param i_tail_index Tail格納開始位置 */
-/* @param trie_parts   TrieParts        */
+/* @param node_parts   NodeParts        */
 /* @return Error code                   */
 int DoubleArray::setTailInfo(
   int& i_tail_index,
-  const TrieParts* trie_parts) noexcept
+  const NodeParts* node_parts) noexcept
 {
-  if ((i_tail_size_ <= i_tail_index + trie_parts->i_tail_size_)
-  &&  (tailExtendMemory(i_tail_index + trie_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
+  if ((i_tail_size_ <= i_tail_index + node_parts->i_tail_size_)
+  &&  (tailExtendMemory(i_tail_index + node_parts->i_tail_size_))) { /* メモリが不足したので拡張 */
     return I_FAILED_MEMORY;
   }
 
-  if (trie_parts->c_tail_) {
-    for (uint64_t i = 0, i_tail_size = trie_parts->i_tail_size_; i < i_tail_size; ++i) {
-      c_tail_[i_tail_index++] = trie_parts->c_tail_[i];
-    }
+  if (node_parts->c_tail_) {
+    memcpy(&c_tail_[i_tail_index], node_parts->c_tail_, node_parts->i_tail_size_);
+    i_tail_index += static_cast<int>(node_parts->i_tail_size_);
     --i_tail_index;
   } else {
     c_tail_[i_tail_index] = C_TAIL_CHAR;
   }
-  i_result_[i_tail_index++] = trie_parts->i_result_;
+
+  i_result_[i_tail_index++] = node_parts->i_result_;
 
   return I_NO_ERROR;
 }
 
 
-/* 重複Index情報作成                  */
-/* @param positions start,tail Index  */
-/* @param datas          全追加データ */
+/* 重複Index情報作成                    */
+/* @param i_max_length 最長データ長     */
+/* @param positions    start,tail Index */
+/* @param datas        全追加データ     */
 void DoubleArray::createOverlapPositions(
   uint64_t& i_max_length,
   vector<pair<uint64_t, uint64_t>>& positions,
@@ -437,22 +431,31 @@ void DoubleArray::createOverlapPositions(
     return;
   }
 
+  auto sameIndex = [](uint64_t& i_result, const uint64_t i_length, const char* c_first, const char* c_second) {
+    for (uint64_t i = 0; i < i_length; ++i) {
+      if (c_first[i] != c_second[i]) {
+        i_result = i;
+        break;
+      }
+    }
+  };
+
   /* 先頭 */
   auto top  = datas.cbegin();
   auto next = top;
   ++next;
   i_max_length = top->i_byte_length_;
   uint64_t i_top_same_index(top->i_byte_length_);
-  searchSameIndex(i_top_same_index, top->i_byte_length_, top->c_byte_, next->c_byte_);
+  sameIndex(i_top_same_index, top->i_byte_length_, top->c_byte_, next->c_byte_);
   if (i_top_same_index == next->i_byte_length_) positions.begin()->first = numeric_limits<uint64_t>::max();
   else                                          positions.begin()->second = i_top_same_index;
 
   /* 末尾 */
   auto last    = datas.crbegin();
   auto one_ago = last;
-  ++last;
+  ++one_ago;
   uint64_t i_last_same_index = 0;
-  searchSameIndex(i_last_same_index, min(last->i_byte_length_, one_ago->i_byte_length_), last->c_byte_, one_ago->c_byte_);
+  sameIndex(i_last_same_index, min(last->i_byte_length_, one_ago->i_byte_length_), last->c_byte_, one_ago->c_byte_);
   auto& last_position  = *positions.rbegin();
   last_position.first  = i_last_same_index;
   last_position.second = i_last_same_index;
@@ -470,34 +473,14 @@ void DoubleArray::createOverlapPositions(
     if (i_max_length < i_after_same_index) {
       i_max_length = i_after_same_index;
     }
- 
-    searchSameIndex(i_after_same_index,  current.i_byte_length_, c_current_byte, after.c_byte_);
+
+    sameIndex(i_after_same_index, current.i_byte_length_, c_current_byte, after.c_byte_);
     if (i_after_same_index == after.i_byte_length_) {
       positions[i].first = numeric_limits<uint64_t>::max();  /* 同一データ混在 */
     } else {
       positions[i].first  = i_before_same_index;
       positions[i].second = (i_before_same_index < i_after_same_index ? i_after_same_index : i_before_same_index);
       i_before_same_index = i_after_same_index;
-    }
-  }
-}
-
-
-/* 2つの配列を先頭から検索して内容が異なるIndexを取得 */
-/* @param i_result 検索結果                           */
-/* @param i_length 検索最大Index                      */
-/* @param c_first  検索配列1                          */
-/* @param c_second 検索配列2                          */
-void DoubleArray::searchSameIndex(
-  uint64_t& i_result,
-  const uint64_t i_length,
-  const char* c_first,
-  const char* c_second) const noexcept
-{
-  for (uint64_t i = 0; i < i_length; ++i) {
-    if (c_first[i] != c_second[i]) {
-      i_result = i;
-      break;
     }
   }
 }

@@ -15,15 +15,15 @@
  * @date 2018/01/014
  */
 
-#include <string>
+#include <stdio.h>
 #include <string.h>
 #include <vector>
 #include <cstdint>
 #include <algorithm>
 #include <limits>
 
-class TrieParts;
-class TrieLayer;
+class NodeParts;
+class TrieNode;
 class DASearchParts;
 class ByteArray;
 class ByteArrays;
@@ -31,8 +31,6 @@ class ByteArrays;
 /** DoubleArrayの構築&検索 */
 class DoubleArray
 {
-  using TrieArray = std::vector<std::vector<TrieLayer>>;
-
 public:
   static constexpr int I_NO_ERROR         = 0x00; /* Normal                     */
   static constexpr int I_FAILED_TRIE      = 0x01; /* failed to create TRIE      */
@@ -45,10 +43,8 @@ public:
 
   static constexpr int I_ARRAY_NO_DATA      =  -1;  /* 配列初期値          */
   static constexpr int I_EXTEND_MEMORY      =   2;  /* 配列拡張倍率        */
-  static constexpr int I_EXTEND_TRIE        =   4;  /* TRIE拡張倍率        */
   static constexpr int I_DEFAULT_ARRAY_SIZE = 256;  /* defaultの配列サイズ */
   static constexpr char C_TAIL_CHAR         = 0x00; /* TAILの末尾文字      */
-  static constexpr size_t I_TRIE_TAIL_VALUE = std::numeric_limits<size_t>::max();
 
 public:
   /** init only */
@@ -199,48 +195,46 @@ private:
     const int i_tail_last_index) noexcept;
 
   /** 入力データからTRIE構造を構築する
-  * @param trie_array  構築したTRIE構造
+  * @param root_node   構築したTrie Root Node
   * @param byte_arrays 基にするデータ
   * @return
   */
   void createTrie(
-    TrieArray& trie_array,
+    TrieNode*& root_node,
     const ByteArrays& byte_arrays) const noexcept;
 
   /** Trie構造から再帰的にDoubleArrayを構築する
   * @param i_tail_index 書き込み開始TailIndex
   * @param base_array   BaseValueの値を決定するのに使用
-  * @param trie_array   TRIE全データ
+  * @param trie_node    Current TrieNode
   * @param i_base_index 基準のBaseCheckIndex
-  * @param i_trie_index 対象のTrieノード群
   * @return Error Code
   */
   int recursiveCreateDoubleArray(
     int& i_tail_index,
     unsigned int* base_array,
-    TrieArray& trie_array,
-    const int i_base_index,
-    const size_t i_trie_index) noexcept;
+    TrieNode* trie_node,
+    const int i_base_index) noexcept;
 
-  /** Baseの値を求める
+  /** Baseの値を求める ついでにtarget layer rangeも求める
   * @param i_base_value 求めたBase値
   * @param base_array   BaseValueの値を決定するのに使用
-  * @param layers       TRIEでの同列情報
+  * @param trie_node    対象のTrieNodeIndex
   * @return Error Code
   */
   int getBaseValue(
     unsigned int& i_base_value,
     unsigned int* base_array,
-    const std::vector<TrieLayer>& layers) noexcept;
+    const TrieNode* trie_node) noexcept;
 
   /** Tailに情報を設定する
   * @param i_tail_index Tail格納開始位置
-  * @param trie_parts   TrieParts
+  * @param node_parts   NodeParts
   * @return Error code
   */
   int setTailInfo(
     int& i_tail_index,
-    const TrieParts* trie_parts) noexcept;
+    const NodeParts* node_parts) noexcept;
 
   /** SameIndex情報を作成
   * @param i_max_length 最長データ長
@@ -252,19 +246,6 @@ private:
     uint64_t& i_max_length,
     std::vector<std::pair<uint64_t, uint64_t>>& positions,
     const ByteArrays& datas) const noexcept;
-
-  /** 2つの配列を先頭から検索して内容が異なるIndexを取得
-  * @param i_result 検索結果
-  * @param i_length 検索最大Index
-  * @param c_first  検索配列1
-  * @param c_second 検索配列2
-  * @return
-  */
-  void searchSameIndex(
-    uint64_t& i_result,
-    const uint64_t i_length,
-    const char* c_first,
-    const char* c_second) const noexcept;
 
 private:
   /** BASE配列 */
@@ -321,29 +302,34 @@ public:
   int i_tail_;
 };
 
-/** Trie構造の任意のLayerデータ */
-class TrieLayer
+/** Trie Node */
+class TrieNode
 {
 public:
   /** initのみ */
-  TrieLayer(unsigned char c_byte, size_t i_next_trie_index, TrieParts* trie_parts) noexcept
-    : c_byte_(c_byte), i_next_trie_index_(i_next_trie_index), trie_parts_(trie_parts) {}
+  TrieNode(unsigned char c_byte) noexcept : c_byte_(c_byte), p_same_layer_(nullptr), p_child_top_(nullptr), node_parts_(nullptr) {}
+
+  /** initのみ */
+  TrieNode(unsigned char c_byte, TrieNode* p_same_layer, TrieNode* p_next, NodeParts* node_parts) noexcept
+    : c_byte_(c_byte), p_same_layer_(p_same_layer), p_child_top_(p_next), node_parts_(node_parts) {}
 
   /** cost削減のためvirtualは付加しない */
-  ~TrieLayer() noexcept {}
+  ~TrieNode() noexcept {}
 
   /** move */
-  TrieLayer(TrieLayer&& trie_layer_data) noexcept
-    : c_byte_(trie_layer_data.c_byte_),
-      i_next_trie_index_(trie_layer_data.i_next_trie_index_),
-      trie_parts_(trie_layer_data.trie_parts_) {}
+  TrieNode(TrieNode&& trie_node) noexcept
+    : c_byte_(trie_node.c_byte_),
+      p_same_layer_(trie_node.p_same_layer_),
+      p_child_top_(trie_node.p_child_top_),
+      node_parts_(trie_node.node_parts_) {}
 
   /** = operator */
-  TrieLayer& operator = (const TrieLayer& trie_layer_data)
+  TrieNode& operator = (const TrieNode& trie_node)
   {
-    c_byte_            = trie_layer_data.c_byte_;
-    i_next_trie_index_ = trie_layer_data.i_next_trie_index_;
-    trie_parts_        = trie_layer_data.trie_parts_;
+    c_byte_       = trie_node.c_byte_;
+    p_same_layer_ = trie_node.p_same_layer_;
+    p_child_top_  = trie_node.p_child_top_;
+    node_parts_   = trie_node.node_parts_;
     return *this;
   }
 
@@ -351,24 +337,27 @@ public:
   /** LayerでのByte情報 */
   unsigned char c_byte_;
 
-  /** 続きのTrieArrayIndex */
-  size_t i_next_trie_index_;
+  /** Next Same Layer Node */
+  TrieNode* p_same_layer_;
 
-  /** TriePartsInfo */
-  TrieParts* trie_parts_;
+  /** 続きのTrieNode */
+  TrieNode* p_child_top_;
+
+  /** NodeParts */
+  NodeParts* node_parts_;
 };
 
-/** Trie Data Parts DoubleArray構築時に使用 */
-class TrieParts
+/** Trie Node Parts DoubleArray構築時に使用 */
+class NodeParts
 {
 public:
-  TrieParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
-  TrieParts(
+  NodeParts() : c_tail_(nullptr), i_tail_size_(0), i_result_(0) {}
+  NodeParts(
     char* c_tail,
     const uint64_t i_tail_size,
     const int64_t result) : c_tail_(c_tail), i_tail_size_(i_tail_size), i_result_(result) {}
 
-  ~TrieParts() noexcept
+  ~NodeParts() noexcept
   {
     if (c_tail_) {
       delete[] c_tail_;
@@ -472,7 +461,7 @@ public:
     const int64_t result) noexcept
   {
     if (i_byte_length != 0) {
-      push_back(std::move(ByteArray(c_byte, i_byte_length, result)));
+      emplace_back(c_byte, i_byte_length, result);
     }
   }
 
