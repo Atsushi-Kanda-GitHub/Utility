@@ -8,53 +8,6 @@ from datetime import datetime
 from pprint import pprint
 
 
-
-
-def is_open():
-    """
-        GMO市場がOpenしているかどうか
-        Returns:
-        -----
-            True : OPEN  False : Close
-    """
-    url = "https://api.coin.z.com/public/v1/status"
-    status = requests.get(url).json()
-    if status["status"] == 0 and status["data"]["status"] == "OPEN":
-        return True
-
-    return False
-
-
-def latest_rate(symbol="BTC"):
-    """
-        最新rate取得
-        Parameters:
-            symbol : str
-        Returns:
-        -----
-            rate : dic
-    """
-    url = f"https://api.coin.z.com/public/v1/ticker?symbol={symbol}"
-    status = requests.get(url).json()
-    return status["data"][0]
-
-
-def board_info(symbol="BTC"):
-    """
-        板情報取得
-        Parameters:
-            symbol : str
-        Returns:
-        -----
-            rate : dic
-    """
-    url = f"https://api.coin.z.com/public/v1/orderbooks?symbol={symbol}"
-    status = requests.get(url).json()
-    if status["status"] == 0:
-        return status["data"]
-    return None
-
-
 class GMOWebsocket:
     def __init__(self):
         websocket.enableTrace(True)
@@ -68,6 +21,9 @@ class GMOWebsocket:
         self.ws.run_forever()
 
     def on_message(self, ws, message):
+        ask_list  = message["asks"]
+        bids_list = message["bids"]
+        
         pprint(json.loads(message))
 
     def on_error(self, error):
