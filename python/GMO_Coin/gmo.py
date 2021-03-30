@@ -27,6 +27,7 @@ class GMOWebsocket:
     def __init__(self):
         self.api_key    = ""
         self.secret_key = ""
+        self.total_gain = 0.0
         self.position   = None
 
         websocket.enableTrace(True)
@@ -40,10 +41,11 @@ class GMOWebsocket:
         self.ws.run_forever()
 
     def on_message(self, ws, message):
-        ask_list  = message["asks"]
-        bids_list = message["bids"]
-        
-        pprint(json.loads(message))
+        res = json.loads(message)
+        asks = res["asks"]
+        bids = res["bids"]
+        pprint(asks)
+        pprint(bids)
 
     def on_error(self, error):
         print(error)
@@ -87,6 +89,9 @@ class GMOWebsocket:
         """
             約定情報取得
         """
+        if self.position is NOne:
+            return
+
         time_stamp = "{0}000".format(int(time.mktime(datetime.now().timetuple())))
         method     = "GET"
         end_point  = "https://api.coin.z.com/private"
@@ -105,10 +110,15 @@ class GMOWebsocket:
         }
 
         res = requests.get(end_point + path, headers=headers, params=parameters)
-        #この結果からself.position.contractを設定
-
-
-
+        if res[status] != 0:
+            return
+        total_size = 0.0
+        for execution in res["data"]["list"]:
+            if execution["orderId"] == self.position.order_id:
+                self.total_gain += int(execution["lossGain"])
+                total_size += float(execution["size"])
+        if self.position.size == total_size:
+            self.position = None
 
     def order(self, symbol, side, execution, size, price):
         """
@@ -211,7 +221,7 @@ class GMOWebsocket:
         res = requests.post(end_point + path, headers=headers, data=json.dumps(body))
         self.position = None
 
-    def close_order(self, price)
+    def close_order(self, price):
         """
             決済
             Parameter
